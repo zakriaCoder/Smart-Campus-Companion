@@ -5,6 +5,7 @@ namespace SmartCampus.Services;
 public sealed class CampusRealtimeService
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
+    private bool _databaseAvailable = true;
 
     public event Action? OnChange;
 
@@ -864,33 +865,40 @@ public sealed class CampusRealtimeService
 
     private void LoadFromDatabaseOrSeed()
     {
-        using var db = _dbFactory.CreateDbContext();
-
-        if (db.PortalStudents.Any())
+        try
         {
-            Students.AddRange(db.PortalStudents.AsNoTracking().ToList());
-            FacultyMembers.AddRange(db.PortalFaculty.AsNoTracking().ToList());
-            Courses.AddRange(db.PortalCourses.AsNoTracking().ToList());
-            Enrollments.AddRange(db.CourseEnrollments.AsNoTracking().ToList());
-            CourseAssignments.AddRange(db.PortalAssignments.AsNoTracking().ToList());
-            Submissions.AddRange(db.PortalSubmissions.AsNoTracking().ToList());
-            Announcements.AddRange(db.PortalAnnouncements.AsNoTracking().ToList());
-            AttendanceRecords.AddRange(db.AttendanceRecords.AsNoTracking().ToList());
-            ProfileCorrectionRequests.AddRange(db.ProfileCorrectionRequests.AsNoTracking().ToList());
-            DocumentRequests.AddRange(db.DocumentRequests.AsNoTracking().ToList());
-            ClassroomPosts.AddRange(db.ClassroomPosts.AsNoTracking().ToList());
+            using var db = _dbFactory.CreateDbContext();
 
-            Assignments.AddRange(db.CampusAssignments.AsNoTracking().ToList());
-            Schedule.AddRange(db.CampusSchedules.AsNoTracking().ToList());
-            LostFound.AddRange(db.LostFoundItems.AsNoTracking().ToList());
-            Events.AddRange(db.CampusEvents.AsNoTracking().ToList());
-            Marketplace.AddRange(db.MarketplaceItems.AsNoTracking().ToList());
-            Rides.AddRange(db.RideOffers.AsNoTracking().ToList());
-            Resources.AddRange(db.StudyResources.AsNoTracking().ToList());
-            Notifications.AddRange(db.CampusNotifications.AsNoTracking().ToList());
-            Activities.AddRange(db.CampusActivities.AsNoTracking().ToList());
+            if (db.PortalStudents.Any())
+            {
+                Students.AddRange(db.PortalStudents.AsNoTracking().ToList());
+                FacultyMembers.AddRange(db.PortalFaculty.AsNoTracking().ToList());
+                Courses.AddRange(db.PortalCourses.AsNoTracking().ToList());
+                Enrollments.AddRange(db.CourseEnrollments.AsNoTracking().ToList());
+                CourseAssignments.AddRange(db.PortalAssignments.AsNoTracking().ToList());
+                Submissions.AddRange(db.PortalSubmissions.AsNoTracking().ToList());
+                Announcements.AddRange(db.PortalAnnouncements.AsNoTracking().ToList());
+                AttendanceRecords.AddRange(db.AttendanceRecords.AsNoTracking().ToList());
+                ProfileCorrectionRequests.AddRange(db.ProfileCorrectionRequests.AsNoTracking().ToList());
+                DocumentRequests.AddRange(db.DocumentRequests.AsNoTracking().ToList());
+                ClassroomPosts.AddRange(db.ClassroomPosts.AsNoTracking().ToList());
 
-            return;
+                Assignments.AddRange(db.CampusAssignments.AsNoTracking().ToList());
+                Schedule.AddRange(db.CampusSchedules.AsNoTracking().ToList());
+                LostFound.AddRange(db.LostFoundItems.AsNoTracking().ToList());
+                Events.AddRange(db.CampusEvents.AsNoTracking().ToList());
+                Marketplace.AddRange(db.MarketplaceItems.AsNoTracking().ToList());
+                Rides.AddRange(db.RideOffers.AsNoTracking().ToList());
+                Resources.AddRange(db.StudyResources.AsNoTracking().ToList());
+                Notifications.AddRange(db.CampusNotifications.AsNoTracking().ToList());
+                Activities.AddRange(db.CampusActivities.AsNoTracking().ToList());
+
+                return;
+            }
+        }
+        catch
+        {
+            _databaseAvailable = false;
         }
 
         SeedAcademicPortal();
@@ -909,55 +917,65 @@ public sealed class CampusRealtimeService
 
     private void SaveSnapshotToDatabase()
     {
-        using var db = _dbFactory.CreateDbContext();
+        if (!_databaseAvailable)
+            return;
 
-        db.PortalStudents.RemoveRange(db.PortalStudents);
-        db.PortalFaculty.RemoveRange(db.PortalFaculty);
-        db.PortalCourses.RemoveRange(db.PortalCourses);
-        db.CourseEnrollments.RemoveRange(db.CourseEnrollments);
-        db.PortalAssignments.RemoveRange(db.PortalAssignments);
-        db.PortalSubmissions.RemoveRange(db.PortalSubmissions);
-        db.PortalAnnouncements.RemoveRange(db.PortalAnnouncements);
-        db.AttendanceRecords.RemoveRange(db.AttendanceRecords);
-        db.ProfileCorrectionRequests.RemoveRange(db.ProfileCorrectionRequests);
-        db.DocumentRequests.RemoveRange(db.DocumentRequests);
-        db.ClassroomPosts.RemoveRange(db.ClassroomPosts);
+        try
+        {
+            using var db = _dbFactory.CreateDbContext();
 
-        db.CampusAssignments.RemoveRange(db.CampusAssignments);
-        db.CampusSchedules.RemoveRange(db.CampusSchedules);
-        db.LostFoundItems.RemoveRange(db.LostFoundItems);
-        db.CampusEvents.RemoveRange(db.CampusEvents);
-        db.MarketplaceItems.RemoveRange(db.MarketplaceItems);
-        db.RideOffers.RemoveRange(db.RideOffers);
-        db.StudyResources.RemoveRange(db.StudyResources);
-        db.CampusNotifications.RemoveRange(db.CampusNotifications);
-        db.CampusActivities.RemoveRange(db.CampusActivities);
+            db.PortalStudents.RemoveRange(db.PortalStudents);
+            db.PortalFaculty.RemoveRange(db.PortalFaculty);
+            db.PortalCourses.RemoveRange(db.PortalCourses);
+            db.CourseEnrollments.RemoveRange(db.CourseEnrollments);
+            db.PortalAssignments.RemoveRange(db.PortalAssignments);
+            db.PortalSubmissions.RemoveRange(db.PortalSubmissions);
+            db.PortalAnnouncements.RemoveRange(db.PortalAnnouncements);
+            db.AttendanceRecords.RemoveRange(db.AttendanceRecords);
+            db.ProfileCorrectionRequests.RemoveRange(db.ProfileCorrectionRequests);
+            db.DocumentRequests.RemoveRange(db.DocumentRequests);
+            db.ClassroomPosts.RemoveRange(db.ClassroomPosts);
 
-        db.SaveChanges();
+            db.CampusAssignments.RemoveRange(db.CampusAssignments);
+            db.CampusSchedules.RemoveRange(db.CampusSchedules);
+            db.LostFoundItems.RemoveRange(db.LostFoundItems);
+            db.CampusEvents.RemoveRange(db.CampusEvents);
+            db.MarketplaceItems.RemoveRange(db.MarketplaceItems);
+            db.RideOffers.RemoveRange(db.RideOffers);
+            db.StudyResources.RemoveRange(db.StudyResources);
+            db.CampusNotifications.RemoveRange(db.CampusNotifications);
+            db.CampusActivities.RemoveRange(db.CampusActivities);
 
-        db.PortalStudents.AddRange(Students);
-        db.PortalFaculty.AddRange(FacultyMembers);
-        db.PortalCourses.AddRange(Courses);
-        db.CourseEnrollments.AddRange(Enrollments);
-        db.PortalAssignments.AddRange(CourseAssignments);
-        db.PortalSubmissions.AddRange(Submissions);
-        db.PortalAnnouncements.AddRange(Announcements);
-        db.AttendanceRecords.AddRange(AttendanceRecords);
-        db.ProfileCorrectionRequests.AddRange(ProfileCorrectionRequests);
-        db.DocumentRequests.AddRange(DocumentRequests);
-        db.ClassroomPosts.AddRange(ClassroomPosts);
+            db.SaveChanges();
 
-        db.CampusAssignments.AddRange(Assignments);
-        db.CampusSchedules.AddRange(Schedule);
-        db.LostFoundItems.AddRange(LostFound);
-        db.CampusEvents.AddRange(Events);
-        db.MarketplaceItems.AddRange(Marketplace);
-        db.RideOffers.AddRange(Rides);
-        db.StudyResources.AddRange(Resources);
-        db.CampusNotifications.AddRange(Notifications);
-        db.CampusActivities.AddRange(Activities);
+            db.PortalStudents.AddRange(Students);
+            db.PortalFaculty.AddRange(FacultyMembers);
+            db.PortalCourses.AddRange(Courses);
+            db.CourseEnrollments.AddRange(Enrollments);
+            db.PortalAssignments.AddRange(CourseAssignments);
+            db.PortalSubmissions.AddRange(Submissions);
+            db.PortalAnnouncements.AddRange(Announcements);
+            db.AttendanceRecords.AddRange(AttendanceRecords);
+            db.ProfileCorrectionRequests.AddRange(ProfileCorrectionRequests);
+            db.DocumentRequests.AddRange(DocumentRequests);
+            db.ClassroomPosts.AddRange(ClassroomPosts);
 
-        db.SaveChanges();
+            db.CampusAssignments.AddRange(Assignments);
+            db.CampusSchedules.AddRange(Schedule);
+            db.LostFoundItems.AddRange(LostFound);
+            db.CampusEvents.AddRange(Events);
+            db.MarketplaceItems.AddRange(Marketplace);
+            db.RideOffers.AddRange(Rides);
+            db.StudyResources.AddRange(Resources);
+            db.CampusNotifications.AddRange(Notifications);
+            db.CampusActivities.AddRange(Activities);
+
+            db.SaveChanges();
+        }
+        catch
+        {
+            _databaseAvailable = false;
+        }
     }
 
     private void SeedAcademicPortal()

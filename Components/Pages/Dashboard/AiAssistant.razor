@@ -1,0 +1,123 @@
+@page "/dashboard/assistant"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject AiAssistantService Assistant
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>AI Assistant - SmartCampus</PageTitle>
+
+<section class="campus-page">
+    <div class="module-hero assistant-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> AI Campus Companion</span>
+            <h1>Ask SmartCampus</h1>
+            <p>Chat with a simple assistant for rides, schedules, events, resources, attendance, assignments, and portal help.</p>
+        </div>
+        <span class="hero-pill">@(lastUsedRemote ? "AI API Active" : "Demo Mode")</span>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="content-card span-8">
+            <div class="assistant-thread" aria-live="polite">
+                @foreach (var message in messages)
+                {
+                    <div class="assistant-message @(message.IsUser ? "user" : "bot")">
+                        <div class="assistant-avatar">
+                            <i class="bi @(message.IsUser ? "bi-person" : "bi-stars")"></i>
+                        </div>
+                        <div>
+                            <span>@(message.IsUser ? "You" : "SmartCampus AI")</span>
+                            <p>@message.Text</p>
+                        </div>
+                    </div>
+                }
+
+                @if (isLoading)
+                {
+                    <div class="assistant-message bot">
+                        <div class="assistant-avatar"><i class="bi bi-stars"></i></div>
+                        <div><span>SmartCampus AI</span><p>Thinking...</p></div>
+                    </div>
+                }
+            </div>
+
+            <div class="assistant-compose">
+                <textarea class="form-control smart-input"
+                          placeholder="Ask about rides, timetable, events, resources..."
+                          @bind="question"
+                          @bind:event="oninput"></textarea>
+                <button class="btn primary-action" disabled="@isLoading" @onclick="SendAsync">
+                    <i class="bi bi-send"></i>
+                    Send
+                </button>
+            </div>
+        </div>
+
+        <div class="content-card span-4">
+            <div class="section-head">
+                <div>
+                    <h2>Quick Prompts</h2>
+                    <p>Tap one to start faster.</p>
+                </div>
+            </div>
+
+            <div class="quick-prompt-list">
+                @foreach (var prompt in quickPrompts)
+                {
+                    <button class="mini-action" @onclick="() => UsePrompt(prompt)">
+                        <i class="bi bi-chat-square-text"></i>
+                        @prompt
+                    </button>
+                }
+            </div>
+
+            <div class="api-note mt-3">
+                <i class="bi bi-shield-lock"></i>
+                Store API keys in deployment environment variables. The app falls back to built-in campus answers when no key is configured.
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private readonly List<AssistantChatMessage> messages = new()
+    {
+        new(false, "Hi, I am your SmartCampus assistant. Ask me about ride sharing, events, assignments, resources, attendance, or portal navigation.")
+    };
+
+    private readonly string[] quickPrompts =
+    {
+        "Find me a ride to campus",
+        "What can students do here?",
+        "How do I check assignments?",
+        "Help me report lost and found"
+    };
+
+    private string question = "";
+    private bool isLoading;
+    private bool lastUsedRemote;
+
+    private async Task SendAsync()
+    {
+        var text = question.Trim();
+        if (string.IsNullOrWhiteSpace(text) || isLoading)
+            return;
+
+        question = "";
+        messages.Add(new(true, text));
+        isLoading = true;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var role = authState.User.Claims.FirstOrDefault(c => c.Type.EndsWith("role", StringComparison.OrdinalIgnoreCase))?.Value ?? "Student";
+        var reply = await Assistant.AskAsync(text, role);
+
+        lastUsedRemote = reply.UsedRemoteModel;
+        messages.Add(new(false, reply.Text));
+        isLoading = false;
+    }
+
+    private void UsePrompt(string prompt) => question = prompt;
+
+    private sealed record AssistantChatMessage(bool IsUser, string Text);
+}

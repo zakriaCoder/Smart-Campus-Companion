@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using SmartCampus.Data;
@@ -7,6 +8,13 @@ using SmartCampus.Models;
 using SmartCampus.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -27,6 +35,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<AiAssistantService>();
+builder.Services.AddHttpClient<FreeMapService>();
 
 builder.Services.AddScoped<UserStoreService>();
 builder.Services.AddSingleton<FacultyAcademicService>();
@@ -39,9 +49,16 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-    using var db = factory.CreateDbContext();
-    db.Database.Migrate();
+    try
+    {
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        using var db = factory.CreateDbContext();
+        db.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Database migration failed. SmartCampus will continue with seeded demo data.");
+    }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -50,6 +67,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
@@ -144,5 +162,6 @@ app.MapRazorComponents<SmartCampus.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.MapGet("/", () => Results.Redirect("/account/login"));
+app.MapGet("/health", () => Results.Ok("SmartCampus is running"));
 
 app.Run();

@@ -33,6 +33,7 @@
                                     <li class="nav-item"><a class="nav-link @(IsActive("lostfound"))" href="/dashboard/lostfound"><i class="bi bi-search-heart"></i>Lost</a></li>
                                     <li class="nav-item"><a class="nav-link @(IsActive("events"))" href="/dashboard/events"><i class="bi bi-calendar-event"></i>Events</a></li>
                                     <li class="nav-item"><a class="nav-link @(IsActive("ridesharing"))" href="/dashboard/ridesharing"><i class="bi bi-car-front"></i>Rides</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("assistant"))" href="/dashboard/assistant"><i class="bi bi-stars"></i>AI</a></li>
                                     <li class="nav-item">
                                         <a class="nav-link @(IsActive("notifications"))" href="/dashboard/notifications">
                                             <i class="bi bi-bell"></i>Alerts
@@ -52,6 +53,7 @@
                                     <li class="nav-item"><a class="nav-link @(IsActive("submissions"))" href="/dashboard/faculty/submissions"><i class="bi bi-inbox"></i>Submissions</a></li>
                                     <li class="nav-item"><a class="nav-link @(IsActive("announcements"))" href="/dashboard/faculty/announcements"><i class="bi bi-megaphone"></i>Posts</a></li>
                                     <li class="nav-item"><a class="nav-link @(IsActive("resources"))" href="/dashboard/faculty/resources"><i class="bi bi-folder2-open"></i>Resources</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("assistant"))" href="/dashboard/assistant"><i class="bi bi-stars"></i>AI</a></li>
                                 }
                                 else if (context.User.IsInRole("HOD"))
                                 {
@@ -61,12 +63,14 @@
                                     <li class="nav-item"><a class="nav-link @(IsActive("students"))" href="/dashboard/hod/students"><i class="bi bi-mortarboard"></i>Students</a></li>
                                     <li class="nav-item"><a class="nav-link @(IsActive("announcements"))" href="/dashboard/hod/announcements"><i class="bi bi-megaphone"></i>Notices</a></li>
                                     <li class="nav-item"><a class="nav-link @(IsActive("reports"))" href="/dashboard/hod/reports"><i class="bi bi-graph-up"></i>Reports</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("assistant"))" href="/dashboard/assistant"><i class="bi bi-stars"></i>AI</a></li>
                                 }
                                 else if (context.User.IsInRole("Admin"))
                                 {
                                     <li class="nav-item"><a class="nav-link @(IsActive("admin"))" href="/dashboard/admin"><i class="bi bi-shield-lock"></i>Registrar</a></li>
                                     <li class="nav-item"><a class="nav-link @(IsActive("records"))" href="/dashboard/admin/records"><i class="bi bi-database"></i>Academic Office</a></li>
                                     <li class="nav-item"><a class="nav-link @(IsActive("users"))" href="/dashboard/admin/users"><i class="bi bi-people"></i>User Accounts</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("assistant"))" href="/dashboard/assistant"><i class="bi bi-stars"></i>AI</a></li>
                                 }
                             </ul>
                         </div>

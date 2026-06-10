@@ -1986,3 +1986,110 @@ body { background: radial-gradient(circle at top left, rgba(81,211,154,.13), tra
     .login-options-row { align-items: flex-start; flex-direction: column; }
     .report-bar-row { grid-template-columns: 1fr; }
 }
+
+.assistant-hero { background: linear-gradient(135deg,#10213f 0%,#0f766e 52%,#7c2d12 100%); }
+.free-map-frame {
+    width: 100%;
+    height: 360px;
+    border-radius: 24px;
+    background: #e2e8f0;
+    border: 1px solid #dbe7ef;
+    overflow: hidden;
+}
+.free-map-frame .leaflet-control-attribution {
+    font-size: 10px;
+}
+.api-note.success {
+    color: #075985;
+    background: #e0f2fe;
+    border-color: #bae6fd;
+}
+.assistant-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 420px;
+    max-height: 58vh;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+.assistant-message {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    max-width: 86%;
+}
+.assistant-message.user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+.assistant-avatar {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    color: white;
+    background: linear-gradient(135deg,#0f172a,#0d9488);
+}
+.assistant-message.user .assistant-avatar {
+    background: linear-gradient(135deg,#7c2d12,#2563eb);
+}
+.assistant-message > div:last-child {
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+.assistant-message.user > div:last-child {
+    color: white;
+    background: #0f172a;
+    border-color: #0f172a;
+}
+.assistant-message span {
+    display: block;
+    margin-bottom: 4px;
+    font-size: .74rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.assistant-message.user span { color: rgba(255,255,255,.72); }
+.assistant-message p {
+    margin: 0;
+    color: #0f172a;
+    line-height: 1.55;
+}
+.assistant-message.user p { color: white; }
+.assistant-compose {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: stretch;
+    margin-top: 16px;
+}
+.assistant-compose textarea {
+    min-height: 72px;
+    resize: vertical;
+}
+.quick-prompt-list {
+    display: grid;
+    gap: 10px;
+}
+.quick-prompt-list .mini-action {
+    width: 100%;
+    height: auto;
+    min-height: 44px;
+    grid-template-columns: auto 1fr;
+    justify-content: start;
+    gap: 10px;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 850;
+}
+
+@media (max-width: 760px) {
+    .assistant-message { max-width: 100%; }
+    .assistant-compose { grid-template-columns: 1fr; }
+}
