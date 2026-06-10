@@ -1,0 +1,41 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject CampusRealtimeService Campus
+
+<CascadingAuthenticationState>
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <div class="campus-shell registrar-shell">
+                <nav class="campus-navbar navbar navbar-expand-xl registrar-nav">
+                    <div class="container-fluid px-4">
+                        <a class="navbar-brand campus-brand" href="/dashboard/admin">
+                            <span class="brand-mark danger"><i class="bi bi-building-lock"></i></span>
+                            <span>Registrar<span>Office</span></span>
+                        </a>
+                        <div class="collapse navbar-collapse justify-content-center">
+                            <ul class="navbar-nav campus-nav gap-1">
+                                <li class="nav-item"><a class="nav-link @(IsActiveExact("/dashboard/admin"))" href="/dashboard/admin"><i class="bi bi-speedometer2"></i>Dashboard</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActive("records"))" href="/dashboard/admin/records"><i class="bi bi-database"></i>Records & Requests</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActive("users"))" href="/dashboard/admin/users"><i class="bi bi-person-gear"></i>User Accounts</a></li>
+                            </ul>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 ms-auto">
+                            <span class="live-chip"><span></span>@Campus.PendingProfileRequests Requests</span>
+                            <div class="campus-avatar danger">@(context.User.FindFirst("Initials")?.Value ?? "R")</div>
+                            <a href="/auth/signout" class="btn btn-sm btn-outline-light rounded-pill"><i class="bi bi-box-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </nav>
+                <main class="campus-main">@Body</main>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            @{ Navigation.NavigateTo("/account/login", forceLoad: true); }
+        </NotAuthorized>
+    </AuthorizeView>
+</CascadingAuthenticationState>
+
+@code {
+    private string IsActive(string segment) => Navigation.Uri.Contains(segment, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    private string IsActiveExact(string url) => Navigation.ToBaseRelativePath(Navigation.Uri).TrimEnd('/').Equals(url.Trim('/'), StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}

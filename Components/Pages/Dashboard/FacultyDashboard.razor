@@ -1,0 +1,83 @@
+@page "/dashboard/faculty"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.FacultyLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Faculty")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Faculty Dashboard — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero faculty-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Faculty workspace</span>
+            <h1>@(faculty?.FullName ?? "Faculty")</h1>
+            <p>Assigned courses, enrolled students, assignment posting, submissions and announcements are connected with the student portal.</p>
+        </div>
+        <div class="student-id-card"><div class="orb-avatar">@(faculty?.Initials ?? "F")</div><strong>@(faculty?.Designation ?? "Faculty")</strong><span>@(faculty?.Department ?? "Department")</span></div>
+    </div>
+
+    <div class="insight-grid">
+        <div class="insight-card"><i class="bi bi-book"></i><span>Assigned Courses</span><strong>@MyCourses.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-people"></i><span>Total Students</span><strong>@MyCourses.Sum(c => Campus.EnrollmentCount(c.Id))</strong></div>
+        <div class="insight-card"><i class="bi bi-clipboard-plus"></i><span>Assignments</span><strong>@MyAssignments.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-inbox"></i><span>Submissions</span><strong>@MySubmissions.Count()</strong></div>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-7">
+            <div class="section-head"><div><h2>Assigned courses</h2><p>Assigned by HOD; students enroll from their panel and appear here.</p></div><a class="mini-link" href="/dashboard/faculty/courses">Manage</a></div>
+            @foreach (var course in MyCourses)
+            {
+                <div class="catalog-card">
+                    <div class="course-code big">@course.Code</div>
+                    <div class="flex-grow-1">
+                        <h3>@course.Title</h3>
+                        <p>@course.Day @course.StartTime-@course.EndTime · @course.Room</p>
+                        <div class="progress slim"><div class="progress-bar" style="width:@((Campus.EnrollmentCount(course.Id) * 100 / Math.Max(course.Capacity, 1)))%"></div></div>
+                    </div>
+                    <span class="soft-badge">@Campus.EnrollmentCount(course.Id)/@course.Capacity</span>
+                </div>
+            }
+        </div>
+
+        <div class="glass-card span-5">
+            <div class="section-head"><div><h2>Recent submissions</h2><p>Student submissions appear as soon as submitted.</p></div><a class="mini-link" href="/dashboard/faculty/submissions">Check</a></div>
+            @foreach (var item in MySubmissions.Take(6))
+            {
+                <div class="activity-line"><i class="bi bi-file-earmark-check"></i><div><strong>@item.StudentName</strong><span>@item.CourseCode · @item.FileName · @item.Status</span></div><small>@item.SubmittedOn.ToString("MMM dd")</small></div>
+            }
+        </div>
+
+        <div class="glass-card span-12">
+            <div class="section-head"><div><h2>Faculty quick actions</h2><p>These actions update student dashboard, notifications and announcement center.</p></div></div>
+            <div class="quick-action-grid">
+                <a href="/dashboard/faculty/assignments" class="quick-card"><i class="bi bi-clipboard-plus"></i><strong>Post Assignment</strong><span>Create official course work</span></a>
+                <a href="/dashboard/faculty/announcements" class="quick-card"><i class="bi bi-megaphone"></i><strong>Announcement</strong><span>Send to course students</span></a>
+                <a href="/dashboard/faculty/resources" class="quick-card"><i class="bi bi-folder-plus"></i><strong>Share Resource</strong><span>Upload notes/slides</span></a>
+                <a href="/dashboard/faculty/attendance" class="quick-card"><i class="bi bi-clipboard-check"></i><strong>Mark Attendance</strong><span>Faculty-only attendance control</span></a>
+                <a href="/dashboard/faculty/courses" class="quick-card"><i class="bi bi-people"></i><strong>View Students</strong><span>Course-wise enrolled list</span></a>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string facultyEmail = "bilal.raza@au.edu.pk";
+    private PortalFaculty? faculty;
+    private IEnumerable<PortalCourse> MyCourses => Campus.GetCoursesForFaculty(facultyEmail);
+    private IEnumerable<PortalAssignment> MyAssignments => Campus.CourseAssignments.Where(a => a.TeacherEmail.Equals(facultyEmail, StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<PortalSubmission> MySubmissions => Campus.Submissions.Where(s => MyCourses.Any(c => c.Id == s.CourseId)).OrderByDescending(s => s.SubmittedOn);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        facultyEmail = state.User.Identity?.Name ?? facultyEmail;
+        faculty = Campus.FindFacultyByEmail(facultyEmail);
+    }
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

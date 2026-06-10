@@ -1,0 +1,22 @@
+SmartCampus Final Deploy-Level Frontend Notes
+
+Demo accounts:
+Registrar/Admin: admin@au.edu.pk / admin123
+HOD: hod.cs@au.edu.pk / hod12345
+Faculty: bilal.raza@au.edu.pk / faculty123
+Student: 241844@students.au.edu.pk / bilal123
+
+Final role logic:
+1. Registrar does NOT create/assign courses.
+   Registrar manages official student records, profile correction requests, document requests, enrollment verification and university-level notices.
+2. HOD creates course offerings, assigns faculty, sets day/time/room and opens/closes enrollment.
+3. Faculty sees only assigned courses, sees enrolled students, posts assignments/resources/announcements, and marks attendance.
+4. Student cannot edit official record directly. Student can send correction request to Registrar, request documents, enroll in open courses, view GCR-style course rooms, see attendance, submit assignments, and use campus services.
+5. Real-time frontend state is centralized in Services/CampusRealtimeService.cs. Every action updates dashboard/activity/notifications instantly. This can later be replaced with SQL Server + EF Core while keeping the same UI flow.
+
+Best supervisor demo flow:
+Registrar -> open Records & Requests -> approve profile request / process document / post official notice.
+HOD -> Course Offerings -> create course / assign faculty / open enrollment.
+Student -> enroll course -> view Schedule, GCR Rooms, Announcements, Attendance, Assignment.
+Faculty -> Attendance -> mark student attendance -> Student login shows updated percentage.
+Faculty -> Assignments -> post assignment -> Student submits -> Faculty checks submission.

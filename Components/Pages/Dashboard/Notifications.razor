@@ -1,0 +1,98 @@
+@page "/dashboard/notifications"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Student")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Notifications — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero alerts-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Live notification center</span>
+            <h1>Alerts & Announcements</h1>
+            <p>Actions from registrar, HOD, faculty and student modules flow into one notification center.</p>
+        </div>
+        <button class="btn primary-action" @onclick="Campus.MarkAllNotificationsRead"><i class="bi bi-check2-all me-1"></i> Mark all read</button>
+    </div>
+
+    <div class="insight-grid">
+        <div class="insight-card"><i class="bi bi-bell"></i><span>Unread</span><strong>@Campus.UnreadNotifications</strong></div>
+        <div class="insight-card"><i class="bi bi-megaphone"></i><span>Announcements</span><strong>@StudentAnnouncements.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-lightning-charge"></i><span>Live Activities</span><strong>@Campus.Activities.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-grid"></i><span>Modules</span><strong>@Campus.Notifications.Select(n => n.Module).Distinct().Count()</strong></div>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-7">
+            <div class="toolbar-grid two">
+                <input class="form-control smart-input" placeholder="Search alerts..." @bind="search" @bind:event="oninput" />
+                <select class="form-select smart-input" @bind="moduleFilter">
+                    <option value="All">All Modules</option>
+                    @foreach (var module in Campus.Notifications.Select(n => n.Module).Distinct().OrderBy(x => x))
+                    {
+                        <option value="@module">@module</option>
+                    }
+                </select>
+            </div>
+
+            @foreach (var item in FilteredNotifications)
+            {
+                <div class="notification-row @(item.IsRead ? "read" : "unread") @item.Tone">
+                    <div class="notification-icon"><i class="bi bi-bell"></i></div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h4>@item.Title</h4>
+                            <span class="soft-badge">@item.Module</span>
+                            @if (!item.IsRead) { <span class="status-pill danger">New</span> }
+                        </div>
+                        <p>@item.Message</p>
+                        <small>@item.CreatedAt.ToString("MMM dd, hh:mm tt")</small>
+                    </div>
+                    <button class="mini-action" @onclick="@(() => Campus.ToggleNotificationRead(item.Id))"><i class="bi @(item.IsRead ? "bi-envelope" : "bi-envelope-open")"></i></button>
+                    <button class="mini-action danger" @onclick="@(() => Campus.DeleteNotification(item.Id))"><i class="bi bi-trash"></i></button>
+                </div>
+            }
+        </div>
+
+        <div class="glass-card span-5">
+            <div class="section-head"><div><h2>Announcements visible to me</h2><p>Audience-based filtering from HOD/faculty/registrar.</p></div></div>
+            @foreach (var item in StudentAnnouncements)
+            {
+                <div class="announcement-card @item.Tone">
+                    <div class="d-flex justify-content-between gap-2">
+                        <strong>@item.Title</strong>
+                        @if (item.IsPinned) { <span class="status-pill primary">Pinned</span> }
+                    </div>
+                    <p>@item.Message</p>
+                    <small>@item.PostedByName · @item.PostedByRole · @item.CourseCode</small>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private string currentEmail = "241844@students.au.edu.pk";
+    private string search = "";
+    private string moduleFilter = "All";
+
+    private IEnumerable<PortalAnnouncement> StudentAnnouncements => Campus.GetAnnouncementsForStudent(currentEmail);
+
+    private IEnumerable<CampusNotification> FilteredNotifications => Campus.Notifications
+        .Where(n => moduleFilter == "All" || n.Module == moduleFilter)
+        .Where(n => string.IsNullOrWhiteSpace(search) || n.Title.Contains(search, StringComparison.OrdinalIgnoreCase) || n.Message.Contains(search, StringComparison.OrdinalIgnoreCase) || n.Module.Contains(search, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(n => n.CreatedAt);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        currentEmail = state.User.Identity?.Name ?? currentEmail;
+    }
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

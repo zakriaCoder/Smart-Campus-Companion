@@ -1,0 +1,95 @@
+@page "/dashboard/faculty/announcements"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.FacultyLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Faculty")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Faculty Course Posts — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero alerts-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Faculty → course students</span>
+            <h1>Announcements & GCR Posts</h1>
+            <p>Post an announcement or classroom update. Enrolled students see it in notifications, GCR rooms and announcements.</p>
+        </div>
+        <span class="hero-pill">@MyCourses.Count() Assigned Courses</span>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-4 sticky-card">
+            <div class="section-head"><div><h2>New course communication</h2><p>Target only your assigned course.</p></div></div>
+            <select class="form-select smart-input" @bind="courseId">
+                @foreach (var c in MyCourses)
+                {
+                    <option value="@c.Id">@c.Code - @c.Title</option>
+                }
+            </select>
+            <select class="form-select smart-input" @bind="postType">
+                <option>Announcement</option>
+                <option>Post</option>
+                <option>Resource</option>
+                <option>Reminder</option>
+            </select>
+            <input class="form-control smart-input" placeholder="Title" @bind="title" @bind:event="oninput" />
+            <textarea class="form-control smart-input" rows="5" placeholder="Message for enrolled students" @bind="message"></textarea>
+            <button class="btn primary-action w-100" @onclick="Post"><i class="bi bi-send me-1"></i>Publish</button>
+            <div class="workflow-note mt-3"><i class="bi bi-easel2"></i><span>Announcement type also appears in student's notification center; every type appears in GCR room stream.</span></div>
+        </div>
+
+        <div class="glass-card span-8">
+            <div class="section-head"><div><h2>My course stream</h2><p>Live posts from your course rooms.</p></div></div>
+            @foreach (var item in Campus.GetClassroomPostsForFaculty(facultyEmail))
+            {
+                <div class="classroom-post">
+                    <div class="post-type @item.Type.ToLowerInvariant()"><i class="bi bi-megaphone"></i></div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2"><h3>@item.Title</h3><span class="soft-badge">@item.Type</span><span class="soft-badge success">@item.CourseCode</span></div>
+                        <p>@item.Message</p>
+                        <small>@item.PostedBy · @item.PostedOn.ToString("MMM dd, hh:mm tt")</small>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private string facultyEmail = "bilal.raza@au.edu.pk";
+    private string facultyName = "Faculty";
+    private string courseId = "";
+    private string postType = "Announcement";
+    private string title = "";
+    private string message = "";
+
+    private IEnumerable<PortalCourse> MyCourses => Campus.GetCoursesForFaculty(facultyEmail);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        facultyEmail = state.User.Identity?.Name ?? facultyEmail;
+        facultyName = state.User.FindFirst("FullName")?.Value ?? Campus.FindFacultyByEmail(facultyEmail)?.FullName ?? "Faculty";
+        courseId = MyCourses.FirstOrDefault()?.Id ?? "";
+    }
+
+    private void Post()
+    {
+        if (string.IsNullOrWhiteSpace(courseId)) return;
+        if (postType == "Announcement")
+        {
+            Campus.PostAnnouncement(title, message, "Course", courseId, facultyName, "Faculty");
+        }
+        else
+        {
+            Campus.PublishClassroomPost(courseId, title, message, postType, facultyName);
+        }
+        title = "";
+        message = "";
+    }
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

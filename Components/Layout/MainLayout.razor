@@ -1,0 +1,103 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject CampusRealtimeService Campus
+
+<CascadingAuthenticationState>
+    <AuthorizeView>
+        <Authorized>
+            <div class="campus-shell">
+                <nav class="campus-navbar navbar navbar-expand-xl">
+                    <div class="container-fluid px-4">
+                        <a class="navbar-brand campus-brand" href="@HomeUrl(context)">
+                            <span class="brand-mark"><i class="bi bi-mortarboard-fill"></i></span>
+                            <span>Smart<span>Campus</span></span>
+                        </a>
+
+                        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#campusNav">
+                            <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
+                        </button>
+
+                        <div class="collapse navbar-collapse justify-content-center" id="campusNav">
+                            <ul class="navbar-nav campus-nav gap-1">
+                                @if (context.User.IsInRole("Student"))
+                                {
+                                    <li class="nav-item"><a class="nav-link @(IsActive("home"))" href="/dashboard/home"><i class="bi bi-grid-1x2"></i>Dashboard</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("profile"))" href="/dashboard/profile"><i class="bi bi-person-badge"></i>Record</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("course-registration"))" href="/dashboard/course-registration"><i class="bi bi-journal-plus"></i>Enroll</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("classrooms"))" href="/dashboard/classrooms"><i class="bi bi-easel2"></i>GCR Rooms</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("schedule"))" href="/dashboard/schedule"><i class="bi bi-calendar3"></i>Schedule</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("attendance"))" href="/dashboard/attendance"><i class="bi bi-clipboard-check"></i>Attendance</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("assignments"))" href="/dashboard/assignments"><i class="bi bi-journal-check"></i>Assignments</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("resources"))" href="/dashboard/resources"><i class="bi bi-folder2-open"></i>Resources</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("marketplace"))" href="/dashboard/marketplace"><i class="bi bi-shop"></i>Market</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("lostfound"))" href="/dashboard/lostfound"><i class="bi bi-search-heart"></i>Lost</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("events"))" href="/dashboard/events"><i class="bi bi-calendar-event"></i>Events</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("ridesharing"))" href="/dashboard/ridesharing"><i class="bi bi-car-front"></i>Rides</a></li>
+                                    <li class="nav-item">
+                                        <a class="nav-link @(IsActive("notifications"))" href="/dashboard/notifications">
+                                            <i class="bi bi-bell"></i>Alerts
+                                            @if (Campus.UnreadNotifications > 0)
+                                            {
+                                                <span class="nav-count">@Campus.UnreadNotifications</span>
+                                            }
+                                        </a>
+                                    </li>
+                                }
+                                else if (context.User.IsInRole("Faculty"))
+                                {
+                                    <li class="nav-item"><a class="nav-link @(IsActive("faculty"))" href="/dashboard/faculty"><i class="bi bi-person-video3"></i>Dashboard</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("courses"))" href="/dashboard/faculty/courses"><i class="bi bi-book"></i>Courses</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("attendance"))" href="/dashboard/faculty/attendance"><i class="bi bi-clipboard-check"></i>Attendance</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("assignments"))" href="/dashboard/faculty/assignments"><i class="bi bi-journal-check"></i>Assignments</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("submissions"))" href="/dashboard/faculty/submissions"><i class="bi bi-inbox"></i>Submissions</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("announcements"))" href="/dashboard/faculty/announcements"><i class="bi bi-megaphone"></i>Posts</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("resources"))" href="/dashboard/faculty/resources"><i class="bi bi-folder2-open"></i>Resources</a></li>
+                                }
+                                else if (context.User.IsInRole("HOD"))
+                                {
+                                    <li class="nav-item"><a class="nav-link @(IsActive("hod"))" href="/dashboard/hod"><i class="bi bi-building-fill"></i>Dashboard</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("courses"))" href="/dashboard/hod/courses"><i class="bi bi-journal-bookmark"></i>Course Offerings</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("faculty"))" href="/dashboard/hod/faculty"><i class="bi bi-people"></i>Faculty</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("students"))" href="/dashboard/hod/students"><i class="bi bi-mortarboard"></i>Students</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("announcements"))" href="/dashboard/hod/announcements"><i class="bi bi-megaphone"></i>Notices</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("reports"))" href="/dashboard/hod/reports"><i class="bi bi-graph-up"></i>Reports</a></li>
+                                }
+                                else if (context.User.IsInRole("Admin"))
+                                {
+                                    <li class="nav-item"><a class="nav-link @(IsActive("admin"))" href="/dashboard/admin"><i class="bi bi-shield-lock"></i>Registrar</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("records"))" href="/dashboard/admin/records"><i class="bi bi-database"></i>Academic Office</a></li>
+                                    <li class="nav-item"><a class="nav-link @(IsActive("users"))" href="/dashboard/admin/users"><i class="bi bi-people"></i>User Accounts</a></li>
+                                }
+                            </ul>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 ms-auto">
+                            <span class="live-chip"><span></span>Live Sync</span>
+                            <div class="campus-avatar" title="@(context.User.FindFirst("FullName")?.Value)">
+                                @(context.User.FindFirst("Initials")?.Value ?? "AU")
+                            </div>
+                            <a href="/auth/signout" class="btn btn-sm btn-outline-light rounded-pill" title="Logout">
+                                <i class="bi bi-box-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </nav>
+                <main class="campus-main">@Body</main>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            @{ Navigation.NavigateTo("/account/login", forceLoad: true); }
+        </NotAuthorized>
+    </AuthorizeView>
+</CascadingAuthenticationState>
+
+@code {
+    private string IsActive(string segment)
+        => Navigation.Uri.Contains(segment, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+
+    private static string HomeUrl(AuthenticationState ctx) =>
+        ctx.User.IsInRole("Admin") ? "/dashboard/admin" :
+        ctx.User.IsInRole("HOD") ? "/dashboard/hod" :
+        ctx.User.IsInRole("Faculty") ? "/dashboard/faculty" :
+        "/dashboard/home";
+}

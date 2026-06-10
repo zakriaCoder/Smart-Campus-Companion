@@ -1,0 +1,26 @@
+@page "/dashboard/ridesharing"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Student")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+
+<PageTitle>Ride Share — SmartCampus</PageTitle>
+
+<section class="campus-page">
+    <div class="module-hero ride-hero"><div><span class="eyebrow"><span class="pulse-dot"></span> Ride Sharing / Google Maps Flow</span><h1>Campus Carpool System</h1><p>Request rides, offer rides, match nearby routes and show map-style route preview for pickup/drop-off.</p></div><span class="hero-pill">@Campus.AvailableRides Rides Available</span></div>
+    <div class="dashboard-grid">
+        <div class="content-card span-7"><div class="map-preview"><div class="map-grid"></div><div class="pin pickup"><i class="bi bi-geo-alt-fill"></i><span>@pickup</span></div><div class="pin drop"><i class="bi bi-mortarboard-fill"></i><span>@destination</span></div><div class="route-line"></div><div class="car-dot"><i class="bi bi-car-front-fill"></i></div></div><div class="route-stats"><div><strong>@pickup</strong><span>Pickup</span></div><div><strong>12.4 km</strong><span>Distance</span></div><div><strong>~22 min</strong><span>Est. time</span></div><div><strong>@destination</strong><span>Destination</span></div></div><div class="api-note"><i class="bi bi-map"></i> API integration point: Google Maps can replace this preview for live route optimization and location-based matching.</div></div>
+        <div class="content-card span-5"><div class="section-head"><div><h2>Find a Ride</h2><p>Filters update ride list immediately.</p></div></div><input class="form-control smart-input" placeholder="Pickup Location" @bind="pickup" @bind:event="oninput" /><input class="form-control smart-input" placeholder="Destination" @bind="destination" @bind:event="oninput" /><div class="two-cols"><input class="form-control smart-input" placeholder="Time" @bind="rideTime" @bind:event="oninput" /><select class="form-select smart-input" @bind="seatsNeeded"><option>1</option><option>2</option><option>3</option></select></div><button class="btn primary-action w-100" @onclick="RequestRide"><i class="bi bi-search me-1"></i>Request Ride</button><hr/><h2 class="card-title-small">Offer a Ride</h2><button class="btn btn-outline-dark rounded-pill w-100" @onclick="OfferRide"><i class="bi bi-car-front-fill me-1"></i>Offer Same Route</button></div>
+        <div class="content-card span-12"><div class="toolbar-grid three"><input class="form-control smart-input" placeholder="Search driver, pickup, destination..." @bind="search" @bind:event="oninput" /><select class="form-select smart-input" @bind="seatFilter"><option>Any Seats</option><option>1+</option><option>2+</option><option>3+</option></select><select class="form-select smart-input" @bind="priceFilter"><option>Any Price</option><option>Below 120</option><option>Below 150</option></select></div><div class="ride-list mt-3">@foreach (var ride in FilteredRides){<div class="ride-row"><div class="driver-avatar">@Initials(ride.DriverName)</div><div class="flex-grow-1"><h3>@ride.DriverName</h3><p>@ride.Pickup → @ride.Destination · @ride.Time</p><div class="mini-meta"><span>@ride.DistanceKm km</span><span>@ride.DurationMin min</span><span>@ride.SeatsLeft seats left</span></div></div><div class="text-end"><div class="price">Rs. @ride.Fare</div><button class="mini-action" disabled="@(ride.SeatsLeft <= 0)" @onclick="() => Campus.BookRide(ride.Id)"><i class="bi bi-bookmark-check"></i> Book</button></div></div>}</div></div>
+    </div>
+</section>
+
+@code {
+    private string pickup = "G-10 Markaz, Islamabad"; private string destination = "Air University, E-9"; private string rideTime = "07:30 AM"; private string seatsNeeded = "1"; private string search = ""; private string seatFilter = "Any Seats"; private string priceFilter = "Any Price";
+    private IEnumerable<RideOffer> FilteredRides => Campus.Rides.Where(r => string.IsNullOrWhiteSpace(search) || r.DriverName.Contains(search, StringComparison.OrdinalIgnoreCase) || r.Pickup.Contains(search, StringComparison.OrdinalIgnoreCase) || r.Destination.Contains(search, StringComparison.OrdinalIgnoreCase)).Where(r => seatFilter == "Any Seats" || r.SeatsLeft >= int.Parse(seatFilter[..1])).Where(r => priceFilter == "Any Price" || r.Fare < decimal.Parse(priceFilter.Split(' ').Last())).OrderBy(r => r.Fare);
+    private void RequestRide() => Campus.PushManualNotification("Ride Request Created", $"Request from {pickup} to {destination} at {rideTime}", "Ride Share");
+    private void OfferRide() => Campus.OfferRide(Campus.Profile.FullName, pickup, destination, rideTime, int.Parse(seatsNeeded), 120);
+    private string Initials(string name) => string.Join("", name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+    protected override void OnInitialized() => Campus.OnChange += Refresh; private void Refresh() => InvokeAsync(StateHasChanged); public void Dispose() => Campus.OnChange -= Refresh;
+}

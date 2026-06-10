@@ -1,0 +1,342 @@
+﻿@page "/dashboard/admin/register"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject UserStoreService UserStore
+@inject NavigationManager Navigation
+
+<PageTitle>Register Academic Record — SmartCampus Registrar</PageTitle>
+
+<div class="sc-profile-page">
+    <div class="sc-banner">
+        <div class="sc-banner-inner">
+            <div class="sc-banner-avatar" style="background:#dc2626">
+                <i class="bi bi-person-plus-fill" style="font-size:1.5rem"></i>
+            </div>
+            <div class="sc-banner-info">
+                <h2 class="sc-banner-name">Register Academic Record</h2>
+                <p class="sc-banner-meta">Registrar Office · Create student, faculty, or HOD record</p>
+            </div>
+            <div class="ms-auto mt-2">
+                <a href="/dashboard/admin" class="btn sc-btn-edit">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div style="max-width:680px;margin:1.5rem auto;padding:0 1.5rem">
+        <div class="sc-card">
+
+            @if (success)
+            {
+                <div class="alert sc-alert-success d-flex gap-2 align-items-start mb-4">
+                    <i class="bi bi-check-circle-fill mt-1 flex-shrink-0" style="color:#16a34a"></i>
+                    <div>
+                        <strong>Academic record registered successfully!</strong><br />
+                        <small>
+                            <strong>@lastCreated?.FullName</strong> (@lastCreated?.Email)
+                            has been added as <strong>@lastCreated?.Role</strong>.
+                        </small><br />
+                        <div class="mt-2 d-flex gap-2">
+                            <button class="btn btn-sm btn-success" @onclick="ResetForm">
+                                Register Another
+                            </button>
+                            <a href="/dashboard/admin" class="btn btn-sm btn-outline-secondary">
+                                Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @if (!string.IsNullOrEmpty(errorMsg))
+                {
+                    <div class="alert sc-alert-error d-flex gap-2 align-items-center mb-4 py-2">
+                        <i class="bi bi-exclamation-circle-fill flex-shrink-0"></i>
+                        <span style="font-size:.88rem">@errorMsg</span>
+                    </div>
+                }
+
+                <!-- Role selector tabs -->
+                <div class="sc-card-title mb-3">SELECT RECORD TYPE</div>
+                <div class="row g-2 mb-4">
+                    <div class="col-4">
+                        <button class="sc-role-card w-100 @(selectedRole == UserRole.Student ? "sc-role-active" : "")"
+                                style="color:#0891b2;padding:.9rem .5rem"
+                                @onclick='() => selectedRole = UserRole.Student'>
+                            <i class="bi bi-mortarboard-fill" style="font-size:1.4rem"></i>
+                            <span style="font-weight:700;font-size:.9rem;margin-top:.2rem">Student</span>
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="sc-role-card w-100 @(selectedRole == UserRole.Faculty ? "sc-role-active" : "")"
+                                style="color:#16a34a;padding:.9rem .5rem"
+                                @onclick='() => selectedRole = UserRole.Faculty'>
+                            <i class="bi bi-person-video3" style="font-size:1.4rem"></i>
+                            <span style="font-weight:700;font-size:.9rem;margin-top:.2rem">Faculty</span>
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="sc-role-card w-100 @(selectedRole == UserRole.HOD ? "sc-role-active" : "")"
+                                style="color:#7e22ce;padding:.9rem .5rem"
+                                @onclick='() => selectedRole = UserRole.HOD'>
+                            <i class="bi bi-building-fill" style="font-size:1.4rem"></i>
+                            <span style="font-weight:700;font-size:.9rem;margin-top:.2rem">HOD</span>
+                        </button>
+                    </div>
+                </div>
+
+                <EditForm Model="form" OnValidSubmit="HandleRegister" novalidate>
+                    <DataAnnotationsValidator />
+
+                    <div class="row g-3">
+
+                        <div class="col-sm-6">
+                            <label class="sc-label">Full Name</label>
+                            <div class="sc-input-group">
+                                <span class="sc-input-icon"><i class="bi bi-person"></i></span>
+                                <InputText @bind-Value="form.FullName"
+                                           class="form-control sc-input"
+                                           placeholder="Muhammad Zakria" />
+                            </div>
+                            <ValidationMessage For="@(() => form.FullName)" class="sc-field-error" />
+                        </div>
+
+                        <div class="col-sm-6">
+                            <label class="sc-label">
+                                @(selectedRole == UserRole.Student ? "Student ID" : "Employee ID")
+                            </label>
+                            <div class="sc-input-group">
+                                <span class="sc-input-icon"><i class="bi bi-card-text"></i></span>
+                                <InputText @bind-Value="form.UserId"
+                                           class="form-control sc-input"
+                                           placeholder="@(selectedRole == UserRole.Student ? "241856" : "FAC001")" />
+                            </div>
+                            <ValidationMessage For="@(() => form.UserId)" class="sc-field-error" />
+                        </div>
+
+                        <div class="col-sm-6">
+                            <label class="sc-label">Department</label>
+                            <div class="sc-input-group">
+                                <span class="sc-input-icon"><i class="bi bi-building"></i></span>
+                                <InputSelect @bind-Value="form.Department" class="form-control sc-input">
+                                    <option value="">Select department...</option>
+                                    <option>Computer Science</option>
+                                    <option>Software Engineering</option>
+                                    <option>Electrical Engineering</option>
+                                    <option>Mechanical Engineering</option>
+                                    <option>Business Administration</option>
+                                    <option>Mathematics</option>
+                                </InputSelect>
+                            </div>
+                            <ValidationMessage For="@(() => form.Department)" class="sc-field-error" />
+                        </div>
+
+                        <div class="col-sm-6">
+                            <label class="sc-label">
+                                @(selectedRole == UserRole.Student ? "Semester" : "Designation")
+                            </label>
+                            <div class="sc-input-group">
+                                <span class="sc-input-icon"><i class="bi bi-briefcase"></i></span>
+                                @if (selectedRole == UserRole.Student)
+                                {
+                                    <InputText @bind-Value="form.Designation"
+                                               class="form-control sc-input"
+                                               placeholder="IV-C" />
+                                }
+                                else
+                                {
+                                    <InputSelect @bind-Value="form.Designation" class="form-control sc-input">
+                                        <option value="">Select designation...</option>
+                                        @if (selectedRole == UserRole.Faculty)
+                                        {
+                                            <option>Lecturer</option>
+                                            <option>Senior Lecturer</option>
+                                            <option>Senior Lecturer / Advisor</option>
+                                            <option>Assistant Professor</option>
+                                            <option>Associate Professor</option>
+                                        }
+                                        else
+                                        {
+                                            <option>Head of Department</option>
+                                        }
+                                    </InputSelect>
+                                }
+                            </div>
+                            <ValidationMessage For="@(() => form.Designation)" class="sc-field-error" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="sc-label">Email Address</label>
+                            <div class="sc-input-group">
+                                <span class="sc-input-icon"><i class="bi bi-envelope"></i></span>
+                                <InputText @bind-Value="form.Email"
+                                           class="form-control sc-input"
+                                           type="email"
+                                           placeholder="@EmailHint" />
+                            </div>
+                            <ValidationMessage For="@(() => form.Email)" class="sc-field-error" />
+                        </div>
+
+                        <div class="col-sm-6">
+                            <label class="sc-label">Password</label>
+                            <div class="sc-input-group">
+                                <span class="sc-input-icon"><i class="bi bi-lock"></i></span>
+                                <InputText @bind-Value="form.Password"
+                                           class="form-control sc-input sc-input-pw"
+                                           type="@(showPw ? "text" : "password")"
+                                           placeholder="••••••••" />
+                                <button type="button" class="sc-pw-toggle"
+                                        @onclick="() => showPw = !showPw" tabindex="-1">
+                                    <i class="bi @(showPw ? "bi-eye-slash" : "bi-eye")"></i>
+                                </button>
+                            </div>
+                            <ValidationMessage For="@(() => form.Password)" class="sc-field-error" />
+                        </div>
+
+                        <div class="col-sm-6">
+                            <label class="sc-label">Confirm Password</label>
+                            <div class="sc-input-group">
+                                <span class="sc-input-icon"><i class="bi bi-lock-fill"></i></span>
+                                <InputText @bind-Value="form.ConfirmPassword"
+                                           class="form-control sc-input"
+                                           type="password"
+                                           placeholder="••••••••" />
+                            </div>
+                            <ValidationMessage For="@(() => form.ConfirmPassword)" class="sc-field-error" />
+                        </div>
+
+                    </div>
+
+                    <button type="submit"
+                            class="btn sc-btn-primary w-100 mt-4"
+                            disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Registering...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-person-check me-2"></i>
+                            <span>Register @selectedRole</span>
+                        }
+                    </button>
+
+                </EditForm>
+            }
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .sc-role-card {
+        border: 2px solid #e5e7eb; border-radius: 12px;
+        background: #fff; cursor: pointer;
+        display: flex; flex-direction: column;
+        align-items: center; gap: .25rem;
+        transition: all .18s ease;
+    }
+    .sc-role-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.1); }
+    .sc-role-active { border-width: 2.5px; border-color: currentColor; box-shadow: 0 0 0 3px rgba(0,0,0,.07); }
+</style>
+
+@code {
+    private UserRole    selectedRole = UserRole.Student;
+    private RegisterForm form        = new();
+    private string?     errorMsg;
+    private bool        isLoading;
+    private bool        success;
+    private bool        showPw;
+    private AppUser?    lastCreated;
+
+    protected override void OnInitialized()
+    {
+        var q = System.Web.HttpUtility.ParseQueryString(new Uri(Navigation.Uri).Query);
+        var roleParam = q["role"] ?? "";
+        if (Enum.TryParse<UserRole>(roleParam, out var r))
+            selectedRole = r;
+    }
+
+    private string EmailHint => selectedRole switch
+    {
+        UserRole.Student => "s241856@students.au.edu.pk",
+        UserRole.Faculty => "bilal.raza@au.edu.pk",
+        UserRole.HOD     => "hod.cs@au.edu.pk",
+        _                => "user@au.edu.pk"
+    };
+
+    private async Task HandleRegister()
+    {
+        isLoading = true;
+        errorMsg  = null;
+        await Task.Delay(300);
+
+        var designation = selectedRole == UserRole.Student
+            ? $"Student — {form.Designation}"
+            : form.Designation;
+
+        var newUser = new AppUser
+        {
+            FullName    = form.FullName.Trim(),
+            StudentId   = form.UserId.Trim(),
+            Email       = form.Email.Trim(),
+            Department  = form.Department,
+            Designation = designation,
+            Password    = form.Password,
+            Role        = selectedRole
+        };
+
+        var (ok, err) = UserStore.CreateUser(newUser);
+
+        if (ok)
+        {
+            lastCreated = newUser;
+            success     = true;
+        }
+        else
+        {
+            errorMsg = err;
+        }
+
+        isLoading = false;
+    }
+
+    private void ResetForm()
+    {
+        form        = new();
+        errorMsg    = null;
+        success     = false;
+        lastCreated = null;
+    }
+
+    private sealed class RegisterForm
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Full name is required.")]
+        public string FullName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "ID is required.")]
+        public string UserId { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Department is required.")]
+        public string Department { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "This field is required.")]
+        public string Designation { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Email is required.")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Enter a valid email.")]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Password is required.")]
+        [System.ComponentModel.DataAnnotations.MinLength(6, ErrorMessage = "Min 6 characters.")]
+        public string Password { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Please confirm password.")]
+        [System.ComponentModel.DataAnnotations.Compare("Password", ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

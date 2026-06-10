@@ -1,0 +1,61 @@
+@page "/dashboard/faculty/courses"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.FacultyLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Faculty")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>My Courses — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero faculty-hero"><div><span class="eyebrow"><span class="pulse-dot"></span> Course control room</span><h1>My Assigned Courses</h1><p>Course allocation comes from HOD/registrar. Enrolled students are shown live after registration.</p></div></div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-7">
+            <div class="toolbar-grid two"><input class="form-control smart-input" placeholder="Search courses..." @bind="search" @bind:event="oninput" /><select class="form-select smart-input" @bind="selectedCourseId"><option value="">Select course for students</option>@foreach (var c in MyCourses){<option value="@c.Id">@c.Code - @c.Title</option>}</select></div>
+            @foreach (var course in FilteredCourses)
+            {
+                <div class="catalog-card @(selectedCourseId == course.Id ? "selected" : "")" @onclick="@(() => selectedCourseId = course.Id)">
+                    <div class="course-code big">@course.Code</div>
+                    <div class="flex-grow-1"><h3>@course.Title</h3><p>@course.Day @course.StartTime-@course.EndTime · @course.Room</p><div class="meta-line"><span>@course.Department</span><span>@course.Semester</span><span>@Campus.EnrollmentCount(course.Id)/@course.Capacity students</span></div></div>
+                    <span class="status-pill @(course.IsOpenForEnrollment ? "success" : "danger")">@(course.IsOpenForEnrollment ? "Open" : "Closed")</span>
+                </div>
+            }
+        </div>
+        <div class="glass-card span-5">
+            <div class="section-head"><div><h2>Enrolled students</h2><p>Students appear here after course registration.</p></div></div>
+            @if (SelectedCourse is null)
+            {
+                <div class="empty-state"><i class="bi bi-hand-index"></i><h3>Select a course</h3><p>Click a course to see enrolled students.</p></div>
+            }
+            else
+            {
+                <div class="selected-course-banner"><strong>@SelectedCourse.Code</strong><span>@SelectedCourse.Title</span></div>
+                @foreach (var student in Campus.GetStudentsForCourse(SelectedCourse.Id))
+                {
+                    <div class="student-row"><div class="mini-avatar">@student.Initials</div><div><strong>@student.FullName</strong><span>@student.StudentId · @student.Semester · CGPA @student.Cgpa</span></div></div>
+                }
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private string facultyEmail = "bilal.raza@au.edu.pk";
+    private string search = "";
+    private string selectedCourseId = "";
+    private IEnumerable<PortalCourse> MyCourses => Campus.GetCoursesForFaculty(facultyEmail);
+    private PortalCourse? SelectedCourse => Campus.Courses.FirstOrDefault(c => c.Id == selectedCourseId);
+    private IEnumerable<PortalCourse> FilteredCourses => MyCourses.Where(c => string.IsNullOrWhiteSpace(search) || c.Code.Contains(search, StringComparison.OrdinalIgnoreCase) || c.Title.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        facultyEmail = state.User.Identity?.Name ?? facultyEmail;
+        selectedCourseId = MyCourses.FirstOrDefault()?.Id ?? "";
+    }
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

@@ -1,0 +1,102 @@
+@page "/dashboard/hod/courses"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.HodLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "HOD")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Department Courses — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero hod-hero"><div><span class="eyebrow"><span class="pulse-dot"></span> HOD course allocation</span><h1>Courses, Faculty & Timetable</h1><p>Create/monitor department courses, assign faculty, set room/timing and open/close enrollment. Changes instantly affect students and faculty.</p></div></div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-4 sticky-card">
+            <div class="section-head"><div><h2>Create Course</h2><p>HOD creates department course offerings; registrar only verifies student records.</p></div></div>
+            <input class="form-control smart-input" placeholder="Code e.g. CS-350" @bind="newCode" />
+            <input class="form-control smart-input" placeholder="Course title" @bind="newTitle" />
+            <input class="form-control smart-input" placeholder="Department" @bind="newDepartment" />
+            <div class="two-cols"><input class="form-control smart-input" placeholder="Semester" @bind="newSemester" /><input class="form-control smart-input" type="number" @bind="newCapacity" /></div>
+            <button class="btn primary-action w-100" @onclick="CreateCourse">Create Course</button>
+
+            <div class="divider"></div>
+            <h2 class="small-title">Assign Faculty</h2>
+            <select class="form-select smart-input" @bind="selectedCourseId">@foreach (var c in Campus.Courses){<option value="@c.Id">@c.Code - @c.Title</option>}</select>
+            <select class="form-select smart-input" @bind="facultyEmail">@foreach (var f in Campus.FacultyMembers){<option value="@f.Email">@f.FullName</option>}</select>
+            <select class="form-select smart-input" @bind="day">@foreach (var d in Days){<option value="@d">@d</option>}</select>
+            <div class="two-cols"><input class="form-control smart-input" type="time" value="@startTime" @onchange="SetStartTime" /><input class="form-control smart-input" type="time" value="@endTime" @onchange="SetEndTime" /></div>
+            <input class="form-control smart-input" placeholder="Room" @bind="room" />
+            <button class="btn soft-action w-100" @onclick="AssignFaculty">Assign / Update</button>
+        </div>
+
+        <div class="glass-card span-8">
+            <div class="toolbar-grid two"><input class="form-control smart-input" placeholder="Search courses/faculty..." @bind="search" @bind:event="oninput" /><select class="form-select smart-input" @bind="statusFilter"><option value="All">All</option><option value="Open">Open</option><option value="Closed">Closed</option><option value="Unassigned">Unassigned</option></select></div>
+            @foreach (var course in FilteredCourses)
+            {
+                <div class="catalog-card">
+                    <div class="course-code big">@course.Code</div>
+                    <div class="flex-grow-1"><h3>@course.Title</h3><p>@course.Department · @course.Semester · @course.CreditHours CH</p><div class="meta-line"><span>@course.FacultyName</span><span>@course.Day @course.StartTime-@course.EndTime</span><span>@course.Room</span><span>@Campus.EnrollmentCount(course.Id)/@course.Capacity students</span></div></div>
+                    <button class="@CourseButtonClass(course)" @onclick="@(() => Campus.ToggleCourseEnrollment(course.Id))">@CourseButtonText(course)</button>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private readonly string[] Days = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+    private string search = "";
+    private string statusFilter = "All";
+    private string selectedCourseId = "";
+    private string facultyEmail = "";
+    private string day = "Monday";
+    private string startTime = "09:00";
+    private string endTime = "10:30";
+    private string room = "CS Lab";
+    private string newCode = "";
+    private string newTitle = "";
+    private string newDepartment = "Computer Science";
+    private string newSemester = "IV-C";
+    private int newCapacity = 45;
+
+    private IEnumerable<PortalCourse> FilteredCourses => Campus.Courses
+        .Where(c => statusFilter == "All" || (statusFilter == "Open" && c.IsOpenForEnrollment) || (statusFilter == "Closed" && !c.IsOpenForEnrollment) || (statusFilter == "Unassigned" && string.IsNullOrWhiteSpace(c.FacultyEmail)))
+        .Where(c => string.IsNullOrWhiteSpace(search) || c.Code.Contains(search, StringComparison.OrdinalIgnoreCase) || c.Title.Contains(search, StringComparison.OrdinalIgnoreCase) || c.FacultyName.Contains(search, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(c => c.Code);
+
+    protected override void OnInitialized()
+    {
+        Campus.OnChange += Refresh;
+        selectedCourseId = Campus.Courses.FirstOrDefault()?.Id ?? "";
+        facultyEmail = Campus.FacultyMembers.FirstOrDefault()?.Email ?? "";
+    }
+
+    private void CreateCourse()
+    {
+        Campus.CreateCourse(newCode, newTitle, newDepartment, newSemester, 3, newCapacity);
+        newCode = "";
+        newTitle = "";
+    }
+
+    private void AssignFaculty()
+    {
+        Campus.AssignFacultyToCourse(selectedCourseId, facultyEmail, day, startTime, endTime, room);
+    }
+
+
+    private static string CourseButtonClass(PortalCourse course)
+    {
+        return course.IsOpenForEnrollment ? "btn soft-action" : "btn primary-action";
+    }
+
+    private static string CourseButtonText(PortalCourse course)
+    {
+        return course.IsOpenForEnrollment ? "Close" : "Open";
+    }
+
+    private void SetStartTime(ChangeEventArgs e) => startTime = e.Value?.ToString() ?? "09:00";
+    private void SetEndTime(ChangeEventArgs e) => endTime = e.Value?.ToString() ?? "10:30";
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

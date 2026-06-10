@@ -1,0 +1,34 @@
+SmartCampus Final Role-Based Frontend
+=====================================
+
+Student Login:
+Role: Student
+Email: 241844@students.au.edu.pk
+Password: bilal123
+
+Faculty Login:
+Role: Faculty
+Mode: Teacher
+Email: bilal.raza@au.edu.pk
+Password: faculty123
+
+HOD Login:
+Role: HOD
+Email: hod.cs@au.edu.pk
+Password: hod12345
+
+Registrar/Admin Login:
+Role: Admin
+Email: admin@au.edu.pk
+Password: admin123
+
+Best demo flow:
+1. Login as Admin/Registrar -> create a new course or send announcement.
+2. Login as HOD -> assign faculty, room and timing to a course.
+3. Login as Student -> enroll course; dashboard, schedule and course registration update.
+4. Login as Faculty -> open Courses page and see enrolled students.
+5. Faculty posts assignment/announcement.
+6. Login as Student -> assignment/announcement appears; submit assignment.
+7. Login as Faculty -> submission appears; add marks/feedback.
+8. Student checks assignment again and sees checked result.
+

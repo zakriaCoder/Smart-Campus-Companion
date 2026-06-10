@@ -1,0 +1,6 @@
+@page "/dashboard/admin/users"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+<AcademicRecords />

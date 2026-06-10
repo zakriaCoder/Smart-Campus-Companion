@@ -1,0 +1,69 @@
+@page "/dashboard/admin"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+
+<PageTitle>Registrar Dashboard — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero registrar-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Registrar / Academic Office</span>
+            <h1>Registrar Control Desk</h1>
+            <p>Secure academic records, student service requests, enrollment verification and official university notices from one polished academic-office workspace.</p>
+        </div>
+        <a class="btn primary-action" href="/dashboard/admin/records"><i class="bi bi-database-check me-1"></i>Open Academic Office</a>
+    </div>
+
+    <div class="insight-grid mt-3">
+        <div class="insight-card"><i class="bi bi-mortarboard"></i><span>Student Records</span><strong>@Campus.Students.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-pencil-square"></i><span>Profile Requests</span><strong>@Campus.PendingProfileRequests</strong></div>
+        <div class="insight-card"><i class="bi bi-file-earmark-text"></i><span>Document Requests</span><strong>@Campus.PendingDocumentRequests</strong></div>
+        <div class="insight-card"><i class="bi bi-journal-plus"></i><span>Enrollments</span><strong>@Campus.TotalEnrollments</strong></div>
+        <div class="insight-card"><i class="bi bi-clipboard-check"></i><span>Attendance Records</span><strong>@Campus.AttendanceRecords.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-megaphone"></i><span>Official Notices</span><strong>@Campus.Announcements.Count(a => a.PostedByRole == "Registrar")</strong></div>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-7">
+            <div class="section-head"><div><h2>Pending registrar actions</h2><p>Requests from student profile and document desk.</p></div></div>
+            @foreach (var req in Campus.ProfileCorrectionRequests.Where(r => r.Status == "Pending").Take(5))
+            {
+                <div class="request-card pending"><div><strong>@req.StudentName</strong><p>@req.FieldName: @req.CurrentValue → @req.RequestedValue</p><small>@req.Reason · @req.RequestedOn.ToString("MMM dd, hh:mm tt")</small></div><span class="status-pill warning">Pending</span></div>
+            }
+            @foreach (var doc in Campus.DocumentRequests.Where(r => r.Status == "Pending").Take(5))
+            {
+                <div class="request-card pending"><div><strong>@doc.StudentName</strong><p>@doc.Type</p><small>@doc.Purpose · @doc.RequestedOn.ToString("MMM dd, hh:mm tt")</small></div><span class="status-pill warning">Pending</span></div>
+            }
+        </div>
+
+        <div class="glass-card span-5">
+            <div class="section-head"><div><h2>Academic office workflow</h2><p>Every request is tracked with status, decision and timestamp.</p></div></div>
+            <div class="workflow-list">
+                <div><i class="bi bi-check-circle"></i><span>Maintain official student records</span></div>
+                <div><i class="bi bi-check-circle"></i><span>Approve/reject profile correction requests</span></div>
+                <div><i class="bi bi-check-circle"></i><span>Process certificates and transcript requests</span></div>
+                <div><i class="bi bi-check-circle"></i><span>Verify enrollment records and student status</span></div>
+                <div><i class="bi bi-check-circle"></i><span>Publish official notices for all students and departments</span></div>
+            </div>
+        </div>
+
+        <div class="glass-card span-12">
+            <div class="section-head"><div><h2>Live campus activity</h2><p>Every role action appears here in real time.</p></div></div>
+            <div class="activity-feed two-col">
+                @foreach (var activity in Campus.RecentActivities)
+                {
+                    <div class="activity-item"><span class="activity-icon @activity.Tone"><i class="bi @activity.Icon"></i></span><div><strong>@activity.Title</strong><p>@activity.Message</p><small>@activity.Module · @activity.CreatedAt.ToString("hh:mm tt")</small></div></div>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    protected override void OnInitialized() => Campus.OnChange += Refresh;
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

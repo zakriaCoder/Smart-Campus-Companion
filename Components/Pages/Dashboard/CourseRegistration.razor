@@ -1,0 +1,165 @@
+@page "/dashboard/course-registration"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Student")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Course Registration — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero registration-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> HOD synced course catalog</span>
+            <h1>Course Registration</h1>
+            <p>Courses offered by HOD and assigned to faculty become available here. Enrollments update dashboard, schedule, GCR rooms, assignments and faculty student lists instantly.</p>
+        </div>
+        <div class="hero-metrics">
+            <strong>@Campus.GetStudentCourses(currentEmail).Count()</strong><span>Enrolled</span>
+            <strong>@Campus.GetAvailableCourses(currentEmail).Count()</strong><span>Available</span>
+        </div>
+    </div>
+
+    <div class="toolbar-grid three">
+        <input class="form-control smart-input" placeholder="Search by code, title, faculty..." @bind="search" @bind:event="oninput" />
+        <select class="form-select smart-input" @bind="department">
+            <option value="All">All Departments</option>
+            <option value="Computer Science">Computer Science</option>
+            <option value="Software Engineering">Software Engineering</option>
+            <option value="Electrical Engineering">Electrical Engineering</option>
+        </select>
+        <select class="form-select smart-input" @bind="viewMode">
+            <option value="Available">Available courses</option>
+            <option value="Enrolled">My enrolled courses</option>
+            <option value="All">Full catalog</option>
+        </select>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-8">
+            <div class="section-head">
+                <div>
+                    <h2>@viewMode Courses</h2>
+                    <p>Capacity, instructor assignment and enrollment state are live.</p>
+                </div>
+            </div>
+
+            @foreach (var course in FilteredCourses)
+            {
+                var enrolled = Campus.IsStudentEnrolled(currentEmail, course.Id);
+                var seats = course.Capacity - Campus.EnrollmentCount(course.Id);
+                <div class="catalog-card @(enrolled ? "selected" : "")">
+                    <div class="course-code big">@course.Code</div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h3>@course.Title</h3>
+                            <span class="status-pill @(course.IsOpenForEnrollment ? "success" : "danger")">@(course.IsOpenForEnrollment ? "Open" : "Closed")</span>
+                            @if (enrolled)
+                            {
+                                <span class="status-pill primary">Enrolled</span>
+                            }
+                        </div>
+                        <p>@course.Department · @course.Semester · @course.CreditHours credit hours</p>
+                        <div class="meta-line">
+                            <span><i class="bi bi-person-video3"></i> @course.FacultyName</span>
+                            <span><i class="bi bi-calendar-week"></i> @course.Day @course.StartTime-@course.EndTime</span>
+                            <span><i class="bi bi-geo-alt"></i> @course.Room</span>
+                            <span><i class="bi bi-people"></i> @Campus.EnrollmentCount(course.Id)/@course.Capacity enrolled</span>
+                        </div>
+                    </div>
+                    <div class="action-stack">
+                        @if (enrolled)
+                        {
+                            <button class="btn soft-action" @onclick="@(() => Campus.DropCourse(currentEmail, course.Id))">Drop</button>
+                        }
+                        else
+                        {
+                            <button class="btn primary-action" disabled="@(!course.IsOpenForEnrollment || seats <= 0)" @onclick="@(() => Campus.EnrollStudent(currentEmail, course.Id))">
+                                Enroll
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (!FilteredCourses.Any())
+            {
+                <div class="empty-state"><i class="bi bi-journal-x"></i><h3>No course found</h3><p>Try changing filter/search.</p></div>
+            }
+        </div>
+
+        <div class="glass-card span-4">
+            <div class="section-head">
+                <div>
+                    <h2>My schedule sync</h2>
+                    <p>Enrolled courses create your real timetable.</p>
+                </div>
+            </div>
+            @foreach (var course in Campus.GetStudentCourses(currentEmail))
+            {
+                <div class="mini-schedule-card">
+                    <strong>@course.Code</strong>
+                    <span>@course.Day · @course.StartTime - @course.EndTime</span>
+                    <small>@course.Room · @course.FacultyName</small>
+                </div>
+            }
+
+            <div class="divider"></div>
+            <h2 class="small-title">Registration logic</h2>
+            <ul class="logic-list">
+                <li>HOD creates course offering and opens enrollment</li>
+                <li>HOD assigns faculty and class timing</li>
+                <li>Student enrolls from catalog</li>
+                <li>Faculty sees enrolled students</li>
+                <li>Assignments/announcements reach only relevant students</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string currentEmail = "241844@students.au.edu.pk";
+    private string search = "";
+    private string department = "All";
+    private string viewMode = "Available";
+
+    private IEnumerable<PortalCourse> FilteredCourses
+    {
+        get
+        {
+            IEnumerable<PortalCourse> query = viewMode switch
+            {
+                "Available" => Campus.GetAvailableCourses(currentEmail),
+                "Enrolled" => Campus.GetStudentCourses(currentEmail),
+                _ => Campus.Courses
+            };
+
+            query = query.Where(c => department == "All" || c.Department == department);
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(c => c.Code.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || c.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || c.FacultyName.Contains(search, StringComparison.OrdinalIgnoreCase));
+            }
+            return query.OrderBy(c => c.Code);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        currentEmail = state.User.Identity?.Name ?? currentEmail;
+    }
+
+    private void Refresh()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Campus.OnChange -= Refresh;
+    }
+}

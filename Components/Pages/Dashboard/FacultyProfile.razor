@@ -1,0 +1,198 @@
+﻿@page "/dashboard/faculty/profile"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.FacultyLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Faculty")]
+
+@inject UserStoreService UserStore
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>My Profile - SmartCampus</PageTitle>
+
+<div class="sc-profile-page">
+    <div class="sc-banner" style="background:linear-gradient(135deg,#14532d,#15803d)">
+        <div class="sc-banner-inner">
+            <div class="sc-banner-avatar" style="background:#166534">@initials</div>
+
+            <div class="sc-banner-info">
+                <h2 class="sc-banner-name">@fullName</h2>
+                <p class="sc-banner-meta">@designation &middot; @department &middot; Air University</p>
+
+                <div class="sc-tags mt-2">
+                    <span class="sc-tag">Faculty</span>
+                    <span class="sc-tag">@(isAdvisor ? "Advisor Mode" : "Teacher Mode")</span>
+                    <span class="sc-tag">@department</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sc-grid">
+        <div class="sc-card">
+            <div class="sc-card-title">PERSONAL INFORMATION</div>
+
+            <table class="sc-info-table w-100">
+                <tr>
+                    <td class="sc-info-label">Full Name</td>
+                    <td class="sc-info-value">@fullName</td>
+                </tr>
+
+                <tr>
+                    <td class="sc-info-label">Email</td>
+                    <td class="sc-info-value">@email</td>
+                </tr>
+
+                <tr>
+                    <td class="sc-info-label">Department</td>
+                    <td class="sc-info-value">@department</td>
+                </tr>
+
+                <tr>
+                    <td class="sc-info-label">Designation</td>
+                    <td class="sc-info-value">@designation</td>
+                </tr>
+
+                <tr>
+                    <td class="sc-info-label">Current Mode</td>
+                    <td class="sc-info-value">@(isAdvisor ? "Advisor" : "Teacher")</td>
+                </tr>
+            </table>
+        </div>
+
+        @if (isAdvisor)
+        {
+            <div class="sc-card">
+                <div class="sc-card-title">ADVISING STATS</div>
+
+                <div class="sc-stats-grid">
+                    <div class="sc-stat-item">
+                        <span class="sc-stat-num sc-stat--blue">@adviseeCount</span>
+                        <span class="sc-stat-label">Advisees</span>
+                    </div>
+
+                    <div class="sc-stat-item">
+                        <span class="sc-stat-num sc-stat--green">3</span>
+                        <span class="sc-stat-label">Meetings</span>
+                    </div>
+
+                    <div class="sc-stat-item">
+                        <span class="sc-stat-num sc-stat--orange">2</span>
+                        <span class="sc-stat-label">Clearance</span>
+                    </div>
+
+                    <div class="sc-stat-item">
+                        <span class="sc-stat-num sc-stat--red">1</span>
+                        <span class="sc-stat-label">Attention</span>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="sc-card">
+                <div class="sc-card-title">TEACHING STATS</div>
+
+                <div class="sc-stats-grid">
+                    <div class="sc-stat-item">
+                        <span class="sc-stat-num sc-stat--blue">3</span>
+                        <span class="sc-stat-label">Courses</span>
+                    </div>
+
+                    <div class="sc-stat-item">
+                        <span class="sc-stat-num sc-stat--green">85</span>
+                        <span class="sc-stat-label">Students</span>
+                    </div>
+
+                    <div class="sc-stat-item">
+                        <span class="sc-stat-num sc-stat--orange">12</span>
+                        <span class="sc-stat-label">Assignments</span>
+                    </div>
+
+                    <div class="sc-stat-item">
+                        <span class="sc-stat-num sc-stat--red">5</span>
+                        <span class="sc-stat-label">Pending</span>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (isAdvisor)
+        {
+            <div class="sc-card">
+                <div class="sc-card-title">ADVISOR RESPONSIBILITIES</div>
+
+                <ul class="sc-activity-list">
+                    <li class="sc-activity-item">
+                        <span class="sc-activity-dot" style="background:#2563eb"></span>
+                        <span class="sc-activity-title">Review student academic progress</span>
+                        <span class="sc-activity-time">Advisor</span>
+                    </li>
+
+                    <li class="sc-activity-item">
+                        <span class="sc-activity-dot" style="background:#16a34a"></span>
+                        <span class="sc-activity-title">Guide course registration decisions</span>
+                        <span class="sc-activity-time">Advisor</span>
+                    </li>
+
+                    <li class="sc-activity-item">
+                        <span class="sc-activity-dot" style="background:#f97316"></span>
+                        <span class="sc-activity-title">Handle clearance and advising requests</span>
+                        <span class="sc-activity-time">Advisor</span>
+                    </li>
+                </ul>
+            </div>
+        }
+        else
+        {
+            <div class="sc-card">
+                <div class="sc-card-title">TEACHING RESPONSIBILITIES</div>
+
+                <ul class="sc-activity-list">
+                    <li class="sc-activity-item">
+                        <span class="sc-activity-dot" style="background:#2563eb"></span>
+                        <span class="sc-activity-title">Manage assigned courses</span>
+                        <span class="sc-activity-time">Teacher</span>
+                    </li>
+
+                    <li class="sc-activity-item">
+                        <span class="sc-activity-dot" style="background:#16a34a"></span>
+                        <span class="sc-activity-title">Create and grade assignments</span>
+                        <span class="sc-activity-time">Teacher</span>
+                    </li>
+
+                    <li class="sc-activity-item">
+                        <span class="sc-activity-dot" style="background:#f97316"></span>
+                        <span class="sc-activity-title">Share course resources</span>
+                        <span class="sc-activity-time">Teacher</span>
+                    </li>
+                </ul>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string fullName = "";
+    private string initials = "";
+    private string department = "";
+    private string designation = "";
+    private string email = "";
+    private string mode = "";
+    private bool isAdvisor;
+    private int adviseeCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+
+        fullName = auth.User.FindFirst("FullName")?.Value ?? "Faculty";
+        initials = auth.User.FindFirst("Initials")?.Value ?? "F";
+        department = auth.User.FindFirst("Department")?.Value ?? "";
+        designation = auth.User.FindFirst("Designation")?.Value ?? "Lecturer";
+        email = auth.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+        mode = auth.User.FindFirst("FacultyMode")?.Value ?? "Teacher";
+        isAdvisor = mode == "Advisor";
+
+        adviseeCount = UserStore.GetByRole(UserRole.Student)
+            .Count(u => u.Department.Equals(department, StringComparison.OrdinalIgnoreCase));
+    }
+}

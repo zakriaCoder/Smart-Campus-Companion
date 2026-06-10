@@ -1,0 +1,152 @@
+@page "/dashboard/home"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Student")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Student Dashboard — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero student-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Live student workspace</span>
+            <h1>Welcome back, @(student?.FullName ?? "Student")</h1>
+            <p>Your official record, HOD course offerings, faculty attendance, GCR rooms, assignments and campus services are synced from one shared university system.</p>
+            <div class="hero-actions">
+                <a class="btn primary-action" href="/dashboard/classrooms"><i class="bi bi-easel2 me-1"></i> Open GCR Rooms</a>
+                <a class="btn soft-action" href="/dashboard/attendance"><i class="bi bi-clipboard-check me-1"></i> Check Attendance</a>
+            </div>
+        </div>
+        <div class="student-id-card">
+            <div class="orb-avatar">@(student?.Initials ?? "AU")</div>
+            <strong>@(student?.StudentId ?? "-")</strong>
+            <span>@(student?.Department ?? "Air University") · @(student?.Semester ?? "Spring 2026")</span>
+        </div>
+    </div>
+
+    <div class="insight-grid">
+        <div class="insight-card"><i class="bi bi-journal-bookmark"></i><span>Enrolled Courses</span><strong>@StudentCourses.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-clipboard-check"></i><span>Attendance</span><strong>@Campus.OverallAttendancePercent(currentEmail)%</strong></div>
+        <div class="insight-card"><i class="bi bi-journal-check"></i><span>Official Assignments</span><strong>@StudentAssignments.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-bell"></i><span>Unread Alerts</span><strong>@Campus.UnreadNotifications</strong></div>
+        <div class="insight-card"><i class="bi bi-calendar-event"></i><span>Registered Events</span><strong>@Campus.RegisteredEvents</strong></div>
+        <div class="insight-card"><i class="bi bi-shop"></i><span>Marketplace</span><strong>@Campus.ActiveListings</strong></div>
+        <div class="insight-card"><i class="bi bi-car-front"></i><span>Available Rides</span><strong>@Campus.AvailableRides</strong></div>
+    </div>
+
+    <div class="neo-grid">
+        <div class="glass-card span-7">
+            <div class="section-head">
+                <div>
+                    <h2>My enrolled courses</h2>
+                    <p>HOD offers courses, assigns faculty/timetable, and student enrollment makes them appear here.</p>
+                </div>
+                <a href="/dashboard/course-registration" class="mini-link">Enroll</a>
+            </div>
+
+            @foreach (var course in StudentCourses)
+            {
+                <div class="course-row">
+                    <div class="course-code">@course.Code</div>
+                    <div class="flex-grow-1">
+                        <h4>@course.Title</h4>
+                        <p>@course.FacultyName · @course.Day @course.StartTime-@course.EndTime · @course.Room</p>
+                    </div>
+                    <div class="d-flex flex-column align-items-end gap-1"><span class="soft-badge">@Campus.EnrollmentCount(course.Id)/@course.Capacity</span><span class="status-pill primary">@Campus.AttendancePercent(currentEmail, course.Id)% Attendance</span></div>
+                </div>
+            }
+        </div>
+
+        <div class="glass-card span-5">
+            <div class="section-head">
+                <div>
+                    <h2>Announcements</h2>
+                    <p>Registrar, HOD and faculty messages are filtered automatically.</p>
+                </div>
+            </div>
+
+            @foreach (var item in StudentAnnouncements.Take(5))
+            {
+                <div class="announcement-mini @item.Tone">
+                    <strong>@item.Title</strong>
+                    <span>@item.Message</span>
+                    <small>@item.PostedByRole · @item.CourseCode · @item.CreatedAt.ToString("MMM dd, hh:mm tt")</small>
+                </div>
+            }
+        </div>
+
+        <div class="glass-card span-7">
+            <div class="section-head">
+                <div>
+                    <h2>Official assignment pipeline</h2>
+                    <p>Faculty posted work appears here and submissions go back to faculty panel.</p>
+                </div>
+                <a href="/dashboard/assignments" class="mini-link">Open</a>
+            </div>
+
+            @foreach (var item in StudentAssignments.Take(4))
+            {
+                var sub = Campus.GetSubmission(item.Id, currentEmail);
+                <div class="task-row">
+                    <div class="task-date @(item.IsOverdue ? "danger" : "")">@item.DueDate.ToString("MMM dd")</div>
+                    <div class="flex-grow-1">
+                        <h4>@item.Title</h4>
+                        <p>@item.CourseCode · @item.TeacherName · @item.Marks marks</p>
+                    </div>
+                    <span class="status-pill @(sub is null ? (item.IsOverdue ? "danger" : "warning") : "success")">
+                        @(sub is null ? (item.IsOverdue ? "Overdue" : "Pending") : sub.Status)
+                    </span>
+                </div>
+            }
+        </div>
+
+        <div class="glass-card span-5">
+            <div class="section-head">
+                <div>
+                    <h2>Live activity</h2>
+                    <p>Every module action pushes a real-time activity.</p>
+                </div>
+            </div>
+            @foreach (var activity in Campus.RecentActivities.Take(7))
+            {
+                <div class="activity-line">
+                    <i class="bi @activity.Icon"></i>
+                    <div>
+                        <strong>@activity.Title</strong>
+                        <span>@activity.Message</span>
+                    </div>
+                    <small>@activity.CreatedAt.ToString("hh:mm tt")</small>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private string currentEmail = "241844@students.au.edu.pk";
+    private PortalStudent? student;
+
+    private IEnumerable<PortalCourse> StudentCourses => Campus.GetStudentCourses(currentEmail);
+    private IEnumerable<PortalAssignment> StudentAssignments => Campus.GetAssignmentsForStudent(currentEmail);
+    private IEnumerable<PortalAnnouncement> StudentAnnouncements => Campus.GetAnnouncementsForStudent(currentEmail);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        currentEmail = state.User.Identity?.Name ?? currentEmail;
+        student = Campus.FindStudentByEmail(currentEmail);
+    }
+
+    private void Refresh()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Campus.OnChange -= Refresh;
+    }
+}

@@ -1,0 +1,144 @@
+﻿@page "/dashboard/hod/requests"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.HodLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "HOD")]
+
+@inject AuthenticationStateProvider AuthStateProvider
+@inject CourseRegistrationRequestService RequestService
+
+<PageTitle>HOD Requests - SmartCampus</PageTitle>
+
+<div class="sc-profile-page">
+    <div class="sc-banner" style="background:linear-gradient(135deg,#1e3a5f,#1d4ed8)">
+        <div class="sc-banner-inner">
+            <div class="sc-banner-avatar" style="background:#1d4ed8">
+                <i class="bi bi-inbox"></i>
+            </div>
+
+            <div class="sc-banner-info">
+                <h2 class="sc-banner-name">Course Registration Requests</h2>
+                <p class="sc-banner-meta">@department final approval for advisor-forwarded requests</p>
+            </div>
+        </div>
+    </div>
+
+    <div style="max-width:1150px;margin:1.5rem auto;padding:0 1.5rem">
+
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <div class="alert sc-alert-success">@message</div>
+        }
+
+        <div class="sc-card">
+            <div class="sc-card-title">FORWARDED REQUESTS</div>
+
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Course</th>
+                            <th>Type</th>
+                            <th>Advisor Remarks</th>
+                            <th>HOD Remarks</th>
+                            <th class="text-end">Final Decision</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var req in requests)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@req.StudentName</strong><br />
+                                    <small class="text-muted">@req.StudentId · @req.Semester</small>
+                                </td>
+
+                                <td>
+                                    <strong>@req.CourseCode</strong><br />
+                                    <small class="text-muted">@req.CourseTitle</small>
+                                </td>
+
+                                <td>@req.RequestType</td>
+
+                                <td>@req.AdvisorRemarks</td>
+
+                                <td>
+                                    <input class="form-control sc-input"
+                                           placeholder="Write final HOD remarks..."
+                                           @bind="remarks[req.Id]" />
+                                </td>
+
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-success me-1"
+                                            @onclick='() => Decide(req.Id, "Approved by HOD")'>
+                                        Approve
+                                    </button>
+
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            @onclick='() => Decide(req.Id, "Rejected by HOD")'>
+                                        Reject
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+
+                        @if (!requests.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    No requests forwarded by advisor yet.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private string department = "";
+    private string? message;
+    private List<CourseRegistrationRequest> requests = new();
+    private Dictionary<int, string> remarks = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+
+        department = auth.User.FindFirst("Department")?.Value ?? "Computer Science";
+
+        LoadRequests();
+    }
+
+    private void LoadRequests()
+    {
+        requests = RequestService.GetForHod(department).ToList();
+
+        foreach (var request in requests)
+        {
+            if (!remarks.ContainsKey(request.Id))
+                remarks[request.Id] = request.HodRemarks;
+        }
+    }
+
+    private void Decide(int id, string decision)
+    {
+        var remark = remarks.TryGetValue(id, out var value) ? value : "";
+
+        if (string.IsNullOrWhiteSpace(remark))
+        {
+            message = "Please add HOD remarks before final decision.";
+            return;
+        }
+
+        RequestService.HodDecision(id, decision, remark);
+
+        message = $"Request {decision.ToLower()} successfully.";
+
+        LoadRequests();
+    }
+}

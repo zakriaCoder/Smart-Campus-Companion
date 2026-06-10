@@ -1,0 +1,60 @@
+@page "/dashboard/faculty/schedule"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.FacultyLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Faculty")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Faculty Schedule — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero schedule-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Teaching schedule</span>
+            <h1>My Teaching Timetable</h1>
+            <p>This timetable is created by HOD course allocation and is also shown to enrolled students.</p>
+        </div>
+    </div>
+
+    <div class="week-strip mt-3">
+        <button class="@AllDayClass" @onclick="ShowAll"><strong>All</strong><span>@MyCourses.Count()</span></button>
+        @foreach (var d in Days)
+        {
+            <button class="@DayButtonClass(d)" @onclick="@(() => SelectDay(d))"><strong>@d.Substring(0, 3)</strong><span>@MyCourses.Count(c => c.Day == d)</span></button>
+        }
+    </div>
+
+    <div class="glass-card mt-3">
+        @foreach (var course in FilteredCourses.OrderBy(c => c.StartTime))
+        {
+            <div class="timeline-item official">
+                <div class="time-box">@course.StartTime<br /><small>@course.EndTime</small></div>
+                <div class="flex-grow-1"><h4>@course.Code - @course.Title</h4><p>@course.Room · @Campus.EnrollmentCount(course.Id) students enrolled</p></div>
+                <span class="soft-badge">@course.Day</span>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private readonly string[] Days = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+    private string facultyEmail = "bilal.raza@au.edu.pk";
+    private string dayFilter = "All";
+    private IEnumerable<PortalCourse> MyCourses => Campus.GetCoursesForFaculty(facultyEmail);
+    private IEnumerable<PortalCourse> FilteredCourses => MyCourses.Where(c => dayFilter == "All" || c.Day == dayFilter);
+    private string AllDayClass => dayFilter == "All" ? "week-day active" : "week-day";
+    private string DayButtonClass(string day) => dayFilter == day ? "week-day active" : "week-day";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        facultyEmail = state.User.Identity?.Name ?? facultyEmail;
+    }
+
+    private void SelectDay(string day) => dayFilter = day;
+    private void ShowAll() => dayFilter = "All";
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

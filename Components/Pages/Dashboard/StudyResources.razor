@@ -1,0 +1,96 @@
+@page "/dashboard/resources"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Student")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Study Resources — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero resource-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Shared academic library</span>
+            <h1>Study Resources</h1>
+            <p>Faculty and students can share notes, code, slides and useful academic material. Downloads update live.</p>
+        </div>
+        <button class="btn primary-action" @onclick="Upload"><i class="bi bi-cloud-upload me-1"></i> Upload Resource</button>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-4 sticky-card">
+            <div class="section-head"><div><h2>Upload resource</h2><p>Visible to students in the selected course.</p></div></div>
+            <input class="form-control smart-input" placeholder="Resource title" @bind="title" @bind:event="oninput" />
+            <select class="form-select smart-input" @bind="course">
+                <option value="CS-284L">CS-284L</option>
+                @foreach (var c in Campus.GetStudentCourses(currentEmail))
+                {
+                    <option value="@c.Code">@c.Code - @c.Title</option>
+                }
+            </select>
+            <select class="form-select smart-input" @bind="type"><option>PDF</option><option>PPT</option><option>Code</option><option>Video</option><option>Link</option></select>
+            <textarea class="form-control smart-input" rows="4" placeholder="Short description" @bind="description"></textarea>
+            <button class="btn primary-action w-100" @onclick="Upload">Upload</button>
+        </div>
+
+        <div class="glass-card span-8">
+            <div class="toolbar-grid three">
+                <input class="form-control smart-input" placeholder="Search resources..." @bind="search" @bind:event="oninput" />
+                <select class="form-select smart-input" @bind="courseFilter"><option value="All">All Courses</option>@foreach (var c in Campus.GetStudentCourses(currentEmail)){<option value="@c.Code">@c.Code</option>}</select>
+                <select class="form-select smart-input" @bind="typeFilter"><option value="All">All Types</option><option>PDF</option><option>PPT</option><option>Code</option><option>Video</option><option>Link</option></select>
+            </div>
+
+            <div class="resource-grid">
+                @foreach (var item in FilteredResources)
+                {
+                    <div class="resource-card">
+                        <div class="resource-icon"><i class="bi bi-file-earmark-text"></i></div>
+                        <h3>@item.Title</h3>
+                        <p>@item.Description</p>
+                        <div class="meta-line"><span>@item.Course</span><span>@item.Type</span><span>@item.Downloads downloads</span></div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn primary-action flex-grow-1" @onclick="@(() => Campus.DownloadResource(item.Id))">Download</button>
+                            <button class="mini-action danger" @onclick="@(() => Campus.DeleteResource(item.Id))"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string currentEmail = "241844@students.au.edu.pk";
+    private string title = "";
+    private string course = "CS-284L";
+    private string type = "PDF";
+    private string description = "";
+    private string search = "";
+    private string courseFilter = "All";
+    private string typeFilter = "All";
+
+    private IEnumerable<StudyResource> FilteredResources => Campus.Resources
+        .Where(r => courseFilter == "All" || r.Course == courseFilter)
+        .Where(r => typeFilter == "All" || r.Type == typeFilter)
+        .Where(r => string.IsNullOrWhiteSpace(search) || r.Title.Contains(search, StringComparison.OrdinalIgnoreCase) || r.Description.Contains(search, StringComparison.OrdinalIgnoreCase) || r.Course.Contains(search, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(r => r.UploadedOn);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        currentEmail = state.User.Identity?.Name ?? currentEmail;
+    }
+
+    private void Upload()
+    {
+        var uploadTitle = string.IsNullOrWhiteSpace(title) ? "Student shared notes" : title;
+        Campus.UploadResource(uploadTitle, course, type, description);
+        title = "";
+        description = "";
+    }
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

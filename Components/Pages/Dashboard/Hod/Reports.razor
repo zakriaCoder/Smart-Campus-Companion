@@ -1,0 +1,144 @@
+@page "/dashboard/hod/reports"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.HodLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "HOD")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+
+<PageTitle>Department Reports — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero premium-report-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Department Intelligence</span>
+            <h1>Academic Performance Board</h1>
+            <p>Live department view for course offerings, faculty allocation, enrollment load, attendance coverage, assignments, submissions and classroom activity.</p>
+        </div>
+        <div class="hero-metrics">
+            <div><strong>@Campus.Courses.Count</strong><span>Courses</span></div>
+            <div><strong>@Campus.TotalEnrollments</strong><span>Enrollments</span></div>
+        </div>
+    </div>
+
+    <div class="insight-grid mt-3">
+        <div class="insight-card"><i class="bi bi-journal-bookmark"></i><span>Course Offerings</span><strong>@Campus.Courses.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-person-video3"></i><span>Faculty Assigned</span><strong>@AssignedFaculty</strong></div>
+        <div class="insight-card"><i class="bi bi-people"></i><span>Students</span><strong>@Campus.Students.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-journal-check"></i><span>Assignments</span><strong>@Campus.CourseAssignments.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-inbox"></i><span>Submissions</span><strong>@Campus.Submissions.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-clipboard-check"></i><span>Attendance</span><strong>@AttendanceCoverage%</strong></div>
+    </div>
+
+    <div class="report-board-grid">
+        <div class="glass-card report-chart-card">
+            <div class="section-head">
+                <div>
+                    <h2>Department health indicators</h2>
+                    <p>Calculated from the same portal data used by students and faculty.</p>
+                </div>
+            </div>
+
+            <div class="report-bar-row">
+                <span>Faculty allocation</span>
+                <div class="report-bar-track"><div class="report-bar-fill" style="@BarWidth(FacultyAllocation)"></div></div>
+                <strong>@FacultyAllocation%</strong>
+            </div>
+            <div class="report-bar-row">
+                <span>Enrollment capacity</span>
+                <div class="report-bar-track"><div class="report-bar-fill" style="@BarWidth(EnrollmentLoad)"></div></div>
+                <strong>@EnrollmentLoad%</strong>
+            </div>
+            <div class="report-bar-row">
+                <span>Attendance coverage</span>
+                <div class="report-bar-track"><div class="report-bar-fill" style="@BarWidth(AttendanceCoverage)"></div></div>
+                <strong>@AttendanceCoverage%</strong>
+            </div>
+            <div class="report-bar-row">
+                <span>Submission progress</span>
+                <div class="report-bar-track"><div class="report-bar-fill" style="@BarWidth(SubmissionProgress)"></div></div>
+                <strong>@SubmissionProgress%</strong>
+            </div>
+        </div>
+
+        <div class="glass-card report-actions-card office-scope-card">
+            <div class="section-head">
+                <div>
+                    <h2>Priority actions</h2>
+                    <p>Operational checks for a complete department workflow.</p>
+                </div>
+            </div>
+            <div class="workflow-list">
+                <div><i class="bi bi-check-circle"></i><span>Assign faculty to every active course offering</span></div>
+                <div><i class="bi bi-check-circle"></i><span>Review courses with low enrollment before closing registration</span></div>
+                <div><i class="bi bi-check-circle"></i><span>Monitor attendance marking status across assigned courses</span></div>
+                <div><i class="bi bi-check-circle"></i><span>Confirm course rooms contain recent posts and assignment links</span></div>
+            </div>
+        </div>
+
+        <div class="glass-card span-12">
+            <div class="section-head">
+                <div>
+                    <h2>Course performance matrix</h2>
+                    <p>Enrollment, faculty allocation, attendance and assignment activity by course.</p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table smart-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Course</th>
+                            <th>Faculty</th>
+                            <th>Schedule</th>
+                            <th>Enrollment</th>
+                            <th>Attendance</th>
+                            <th>Assignments</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var course in Campus.Courses.OrderBy(c => c.Code))
+                        {
+                            <tr>
+                                <td><strong>@course.Code</strong><br /><small>@course.Title</small></td>
+                                <td>@(string.IsNullOrWhiteSpace(course.FacultyName) ? "Not assigned" : course.FacultyName)</td>
+                                <td>@course.Day · @course.StartTime<br /><small>@course.Room</small></td>
+                                <td>@Campus.EnrollmentCount(course.Id) / @course.Capacity</td>
+                                <td>@CourseAttendance(course.Id)%</td>
+                                <td>@Campus.CourseAssignments.Count(a => a.CourseId == course.Id)</td>
+                                <td><span class="status-pill @(course.IsOpenForEnrollment ? "success" : "warning")">@(course.IsOpenForEnrollment ? "Open" : "Closed")</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private int AssignedFaculty => Campus.Courses.Count(c => !string.IsNullOrWhiteSpace(c.FacultyEmail));
+    private int FacultyAllocation => Percent(AssignedFaculty, Math.Max(1, Campus.Courses.Count));
+    private int EnrollmentLoad => Percent(Campus.TotalEnrollments, Math.Max(1, Campus.Courses.Sum(c => c.Capacity)));
+    private int AttendanceCoverage => Percent(Campus.AttendanceRecords.Select(r => r.CourseId).Distinct().Count(), Math.Max(1, Campus.Courses.Count));
+    private int SubmissionProgress => Percent(Campus.Submissions.Count, Math.Max(1, Campus.CourseAssignments.Count * Math.Max(1, Campus.Students.Count)));
+
+    private static int Percent(int value, int total)
+    {
+        if (total <= 0) return 0;
+        return Math.Clamp((int)Math.Round(value * 100.0 / total), 0, 100);
+    }
+
+    private int CourseAttendance(string courseId)
+    {
+        var expected = Math.Max(1, Campus.EnrollmentCount(courseId));
+        var marked = Campus.AttendanceRecords.Where(r => r.CourseId == courseId).Select(r => r.StudentEmail).Distinct().Count();
+        return Percent(marked, expected);
+    }
+
+    private static string BarWidth(int value) => $"width:{Math.Clamp(value, 0, 100)}%";
+
+    protected override void OnInitialized() => Campus.OnChange += Refresh;
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

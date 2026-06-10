@@ -1,0 +1,161 @@
+﻿@page "/dashboard/hod/schedule"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.HodLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "HOD")]
+
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Department Schedule - SmartCampus</PageTitle>
+
+<div class="sc-profile-page">
+    <div class="sc-banner" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">
+        <div class="sc-banner-inner">
+            <div class="sc-banner-avatar" style="background:#0d9488">
+                <i class="bi bi-calendar-week"></i>
+            </div>
+            <div class="sc-banner-info">
+                <h2 class="sc-banner-name">Department Schedule</h2>
+                <p class="sc-banner-meta">@department timetable and class clash overview</p>
+            </div>
+        </div>
+    </div>
+
+    <div style="max-width:1150px;margin:1.5rem auto;padding:0 1.5rem">
+        <div class="sc-card mb-3">
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <select class="form-control sc-input" @bind="dayFilter">
+                        <option value="All">All Days</option>
+                        <option>Monday</option>
+                        <option>Tuesday</option>
+                        <option>Wednesday</option>
+                        <option>Thursday</option>
+                        <option>Friday</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <select class="form-control sc-input" @bind="sectionFilter">
+                        <option value="All">All Sections</option>
+                        @foreach (var sec in schedule.Select(s => s.Section).Distinct())
+                        {
+                            <option>@sec</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="sc-card">
+            <div class="sc-card-title">WEEKLY TIMETABLE</div>
+
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Day</th>
+                            <th>Time</th>
+                            <th>Course</th>
+                            <th>Faculty</th>
+                            <th>Section</th>
+                            <th>Room</th>
+                            <th>Clash</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var item in FilteredSchedule)
+                        {
+                            <tr>
+                                <td><strong>@item.Day</strong></td>
+                                <td>@item.Time</td>
+                                <td>@item.Course</td>
+                                <td>@item.FacultyName</td>
+                                <td>@item.Section</td>
+                                <td>@item.Room</td>
+                                <td>
+                                    @if (HasClash(item))
+                                    {
+                                        <span class="badge bg-danger">Clash</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">Clear</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string department = "";
+    private string dayFilter = "All";
+    private string sectionFilter = "All";
+    private List<HodScheduleItem> schedule = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        department = auth.User.FindFirst("Department")?.Value ?? "Computer Science";
+        schedule = BuildSchedule(department);
+    }
+
+    private IEnumerable<HodScheduleItem> FilteredSchedule
+    {
+        get
+        {
+            var query = schedule.AsEnumerable();
+
+            if (dayFilter != "All")
+                query = query.Where(s => s.Day == dayFilter);
+
+            if (sectionFilter != "All")
+                query = query.Where(s => s.Section == sectionFilter);
+
+            return query.OrderBy(s => s.Day).ThenBy(s => s.Time);
+        }
+    }
+
+    private bool HasClash(HodScheduleItem item)
+    {
+        return schedule.Count(s =>
+            s.Day == item.Day &&
+            s.Time == item.Time &&
+            s.Section == item.Section) > 1;
+    }
+
+    private static List<HodScheduleItem> BuildSchedule(string department)
+    {
+        if (department.Equals("Software Engineering", StringComparison.OrdinalIgnoreCase))
+        {
+            return new()
+            {
+                new("Monday", "09:00 - 10:30", "SE-201", "Ms. Nadia Khan", "IV-A", "B-204"),
+                new("Tuesday", "11:00 - 12:30", "SE-305", "Ms. Nadia Khan", "VI-A", "B-206"),
+                new("Thursday", "02:00 - 03:30", "SE-410", "Dr. Sara Ahmed", "VIII-A", "FYP Lab")
+            };
+        }
+
+        return new()
+        {
+            new("Monday", "09:00 - 10:30", "CS-101", "Mr. Bilal Raza", "I-A", "A-101"),
+            new("Tuesday", "11:00 - 12:30", "CS-284L", "Mr. Bilal Raza", "IV-C", "Lab-3"),
+            new("Wednesday", "10:00 - 11:30", "CS-301", "Dr. Kamran Malik", "V-B", "A-204"),
+            new("Thursday", "02:00 - 03:30", "CS-401", "Dr. Kamran Malik", "VII-A", "A-301"),
+            new("Tuesday", "11:00 - 12:30", "CS-284L", "Mr. Bilal Raza", "IV-C", "Lab-4")
+        };
+    }
+
+    private sealed record HodScheduleItem(
+        string Day,
+        string Time,
+        string Course,
+        string FacultyName,
+        string Section,
+        string Room);
+}

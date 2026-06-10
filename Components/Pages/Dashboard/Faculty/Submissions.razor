@@ -1,0 +1,63 @@
+@page "/dashboard/faculty/submissions"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.FacultyLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Faculty")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Submissions — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero assignment-hero"><div><span class="eyebrow"><span class="pulse-dot"></span> Submission checking</span><h1>Student Submissions</h1><p>Submissions from student assignment page appear here. Faculty can award marks and feedback.</p></div></div>
+
+    <div class="toolbar-grid three mt-3">
+        <input class="form-control smart-input" placeholder="Search student, course, file..." @bind="search" @bind:event="oninput" />
+        <select class="form-select smart-input" @bind="status"><option value="All">All</option><option>Submitted</option><option>Checked</option></select>
+        <input class="form-control smart-input" type="number" placeholder="Marks" @bind="marks" />
+    </div>
+
+    <div class="glass-card mt-3">
+        @foreach (var sub in FilteredSubmissions)
+        {
+            var assignment = Campus.CourseAssignments.FirstOrDefault(a => a.Id == sub.AssignmentId);
+            <div class="submission-row">
+                <div class="mini-avatar">@sub.StudentName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Substring(0,1)</div>
+                <div class="flex-grow-1">
+                    <h3>@sub.StudentName</h3>
+                    <p>@sub.CourseCode · @(assignment?.Title ?? "Assignment") · @sub.FileName</p>
+                    <small>Submitted @sub.SubmittedOn.ToString("MMM dd, hh:mm tt") · @sub.Status @(sub.Marks is not null ? $"· Marks {sub.Marks}" : "")</small>
+                </div>
+                <input class="form-control smart-input compact" placeholder="Feedback" @bind="feedback" />
+                <button class="btn primary-action" @onclick="@(() => Campus.GradeSubmission(sub.Id, marks, feedback))">Check</button>
+            </div>
+        }
+        @if (!FilteredSubmissions.Any())
+        {
+            <div class="empty-state"><i class="bi bi-inbox"></i><h3>No submissions</h3><p>Ask a student to submit from the assignment module and it will appear here.</p></div>
+        }
+    </div>
+</section>
+
+@code {
+    private string facultyEmail = "bilal.raza@au.edu.pk";
+    private string search = "";
+    private string status = "All";
+    private int marks = 20;
+    private string feedback = "Good work";
+    private IEnumerable<PortalCourse> MyCourses => Campus.GetCoursesForFaculty(facultyEmail);
+    private IEnumerable<PortalSubmission> MySubmissions => Campus.Submissions.Where(s => MyCourses.Any(c => c.Id == s.CourseId));
+    private IEnumerable<PortalSubmission> FilteredSubmissions => MySubmissions
+        .Where(s => status == "All" || s.Status == status)
+        .Where(s => string.IsNullOrWhiteSpace(search) || s.StudentName.Contains(search, StringComparison.OrdinalIgnoreCase) || s.CourseCode.Contains(search, StringComparison.OrdinalIgnoreCase) || s.FileName.Contains(search, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(s => s.SubmittedOn);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        facultyEmail = state.User.Identity?.Name ?? facultyEmail;
+    }
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

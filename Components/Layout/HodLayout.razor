@@ -1,0 +1,125 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+
+<CascadingAuthenticationState>
+    <AuthorizeView Roles="HOD">
+        <Authorized>
+            <div class="sc-shell">
+                <nav class="sc-navbar navbar navbar-expand-lg" style="background:#1e3a5f;">
+                    <div class="container-fluid px-4">
+
+                        <a class="navbar-brand sc-brand-name mb-0" href="/dashboard/hod">
+                            <span class="text-white fw-bold">Smart</span>
+                            <span style="color:#93c5fd" class="fw-bold">Campus</span>
+                            <span class="badge bg-primary ms-2 align-middle" style="font-size:.6rem">HOD</span>
+                        </a>
+
+                        <button class="navbar-toggler border-0" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#scNavHod">
+                            <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
+                        </button>
+
+                        <div class="collapse navbar-collapse justify-content-center" id="scNavHod">
+                            <ul class="navbar-nav sc-nav-links gap-1">
+
+                                <li class="nav-item">
+                                    <a class="nav-link sc-nav-link @IsActiveExact("/dashboard/hod")"
+                                           href="/dashboard/hod">
+                                        <i class="bi bi-bar-chart me-1"></i>Overview
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link sc-nav-link @IsActive("/dashboard/hod/faculty")"
+                                           href="/dashboard/hod/faculty">
+                                        <i class="bi bi-person-video3 me-1"></i>Faculty
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link sc-nav-link @IsActive("/dashboard/hod/students")"
+                                           href="/dashboard/hod/students">
+                                        <i class="bi bi-people me-1"></i>Students
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link sc-nav-link @IsActive("/dashboard/hod/courses")"
+                                           href="/dashboard/hod/courses">
+                                        <i class="bi bi-journal-text me-1"></i>Courses
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link sc-nav-link @IsActive("/dashboard/hod/assignments")"
+                                           href="/dashboard/hod/assignments">
+                                        <i class="bi bi-clipboard-check me-1"></i>Assignments
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link sc-nav-link @IsActive("/dashboard/hod/schedule")"
+                                           href="/dashboard/hod/schedule">
+                                        <i class="bi bi-calendar-week me-1"></i>Schedule
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link sc-nav-link @IsActive("/dashboard/hod/announcements")"
+                                           href="/dashboard/hod/announcements">
+                                        <i class="bi bi-megaphone me-1"></i>Announcements
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link sc-nav-link @IsActive("/dashboard/hod/requests")"
+                                           href="/dashboard/hod/requests">
+                                        <i class="bi bi-inbox me-1"></i>Requests
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link sc-nav-link @IsActive("/dashboard/hod/reports")"
+                                           href="/dashboard/hod/reports">
+                                        <i class="bi bi-file-earmark-bar-graph me-1"></i>Reports
+                                    </a>
+                                </li>
+
+                            </ul>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 ms-auto">
+                            <div class="sc-nav-avatar" style="background:#1d4ed8"
+                                 title="@context.User.FindFirst("FullName")?.Value">
+                                @(context.User.FindFirst("Initials")?.Value ?? "H")
+                            </div>
+
+                            <a href="/auth/signout" class="btn btn-sm btn-outline-light" title="Logout">
+                                <i class="bi bi-box-arrow-right"></i>
+                            </a>
+                        </div>
+
+                    </div>
+                </nav>
+
+                <main class="sc-main">@Body</main>
+            </div>
+        </Authorized>
+
+        <NotAuthorized>
+            @{
+                Navigation.NavigateTo("/account/login", forceLoad: true);
+            }
+        </NotAuthorized>
+    </AuthorizeView>
+</CascadingAuthenticationState>
+
+@code {
+    private string IsActive(string href)
+        => Navigation.Uri.Contains(href, StringComparison.OrdinalIgnoreCase)
+           ? "sc-nav-link--active" : "";
+
+    private string IsActiveExact(string href)
+        => new Uri(Navigation.Uri).AbsolutePath.Equals(href, StringComparison.OrdinalIgnoreCase)
+           ? "sc-nav-link--active" : "";
+}

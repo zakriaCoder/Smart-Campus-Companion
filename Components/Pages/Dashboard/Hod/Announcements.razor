@@ -1,0 +1,64 @@
+@page "/dashboard/hod/announcements"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.HodLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "HOD")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Department Announcements — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero hod-hero"><div><span class="eyebrow"><span class="pulse-dot"></span> Department broadcast</span><h1>HOD Announcements</h1><p>HOD announcements can target all users, students, faculty or one course. Students see them on dashboard and notification page.</p></div></div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-4 sticky-card">
+            <div class="section-head"><div><h2>Post announcement</h2><p>Choose audience and send.</p></div></div>
+            <select class="form-select smart-input" @bind="audience"><option>All</option><option>Students</option><option>Faculty</option><option>Course</option></select>
+            @if (audience == "Course")
+            {
+                <select class="form-select smart-input" @bind="courseId">@foreach (var c in Campus.Courses){<option value="@c.Id">@c.Code - @c.Title</option>}</select>
+            }
+            <input class="form-control smart-input" placeholder="Title" @bind="title" @bind:event="oninput" />
+            <textarea class="form-control smart-input" rows="5" placeholder="Message" @bind="message"></textarea>
+            <button class="btn primary-action w-100" @onclick="Post">Broadcast</button>
+        </div>
+        <div class="glass-card span-8">
+            <div class="section-head"><div><h2>Department announcements</h2><p>Pinned messages appear first.</p></div></div>
+            @foreach (var item in Campus.Announcements.OrderByDescending(a => a.IsPinned).ThenByDescending(a => a.CreatedAt))
+            {
+                <div class="announcement-card @item.Tone">
+                    <div class="d-flex justify-content-between gap-2"><strong>@item.Title</strong><button class="mini-action danger" @onclick="@(() => Campus.DeleteAnnouncement(item.Id))"><i class="bi bi-trash"></i></button></div>
+                    <p>@item.Message</p>
+                    <small>@item.PostedByRole · @item.CourseCode · @item.CreatedAt.ToString("MMM dd, hh:mm tt")</small>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private string title = "";
+    private string message = "";
+    private string audience = "Students";
+    private string courseId = "";
+    private string hodName = "HOD";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        hodName = state.User.FindFirst("FullName")?.Value ?? "HOD";
+        courseId = Campus.Courses.FirstOrDefault()?.Id ?? "";
+    }
+
+    private void Post()
+    {
+        Campus.PostAnnouncement(title, message, audience, courseId, hodName, "HOD");
+        title = "";
+        message = "";
+    }
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

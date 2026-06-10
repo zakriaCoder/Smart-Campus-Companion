@@ -1,0 +1,59 @@
+@page "/dashboard/faculty/resources"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.FacultyLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Faculty")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Faculty Resources — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero resource-hero"><div><span class="eyebrow"><span class="pulse-dot"></span> Faculty resource sharing</span><h1>Upload Course Resources</h1><p>Resources uploaded by faculty instantly become visible in the student study resources module.</p></div></div>
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-4 sticky-card">
+            <div class="section-head"><div><h2>Upload material</h2><p>Share with students.</p></div></div>
+            <select class="form-select smart-input" @bind="courseCode">@foreach (var c in MyCourses){<option value="@c.Code">@c.Code - @c.Title</option>}</select>
+            <input class="form-control smart-input" placeholder="Title" @bind="title" />
+            <select class="form-select smart-input" @bind="type"><option>PDF</option><option>PPT</option><option>Code</option><option>Link</option></select>
+            <textarea class="form-control smart-input" rows="4" placeholder="Description" @bind="description"></textarea>
+            <button class="btn primary-action w-100" @onclick="Upload">Upload</button>
+        </div>
+        <div class="glass-card span-8">
+            <div class="section-head"><div><h2>Shared library</h2><p>Live download count and deletion.</p></div></div>
+            <div class="resource-grid">
+                @foreach (var r in Campus.Resources.OrderByDescending(r => r.UploadedOn))
+                {
+                    <div class="resource-card"><div class="resource-icon"><i class="bi bi-folder2-open"></i></div><h3>@r.Title</h3><p>@r.Description</p><div class="meta-line"><span>@r.Course</span><span>@r.Type</span><span>@r.Downloads downloads</span></div><button class="mini-action danger mt-3" @onclick="@(() => Campus.DeleteResource(r.Id))"><i class="bi bi-trash"></i></button></div>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string facultyEmail = "bilal.raza@au.edu.pk";
+    private string courseCode = "CS-284L";
+    private string title = "";
+    private string type = "PDF";
+    private string description = "";
+    private IEnumerable<PortalCourse> MyCourses => Campus.GetCoursesForFaculty(facultyEmail);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        facultyEmail = state.User.Identity?.Name ?? facultyEmail;
+        courseCode = MyCourses.FirstOrDefault()?.Code ?? "CS-284L";
+    }
+
+    private void Upload()
+    {
+        Campus.UploadResource(title, courseCode, type, description);
+        title = "";
+        description = "";
+    }
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

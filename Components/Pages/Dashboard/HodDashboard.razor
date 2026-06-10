@@ -1,0 +1,57 @@
+@page "/dashboard/hod"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.HodLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "HOD")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+
+<PageTitle>HOD Dashboard — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero hod-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Department command center</span>
+            <h1>HOD Dashboard</h1>
+            <p>Monitor courses, faculty allocation, student enrollment, assignments, submissions and announcements from one place.</p>
+        </div>
+        <a class="btn primary-action" href="/dashboard/hod/courses"><i class="bi bi-diagram-3 me-1"></i> Allocate Courses</a>
+    </div>
+
+    <div class="insight-grid">
+        <div class="insight-card"><i class="bi bi-book"></i><span>Courses</span><strong>@Campus.Courses.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-person-video3"></i><span>Faculty</span><strong>@Campus.FacultyMembers.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-people"></i><span>Students</span><strong>@Campus.Students.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-journal-plus"></i><span>Enrollments</span><strong>@Campus.TotalEnrollments</strong></div>
+        <div class="insight-card"><i class="bi bi-inbox"></i><span>Submissions</span><strong>@Campus.Submissions.Count</strong></div>
+        <div class="insight-card"><i class="bi bi-megaphone"></i><span>Announcements</span><strong>@Campus.Announcements.Count</strong></div>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-7">
+            <div class="section-head"><div><h2>Course allocation overview</h2><p>Unassigned courses are visible so HOD can fix them quickly.</p></div></div>
+            @foreach (var course in Campus.Courses.OrderBy(c => c.Code))
+            {
+                <div class="catalog-card @(string.IsNullOrWhiteSpace(course.FacultyEmail) ? "overdue" : "")">
+                    <div class="course-code big">@course.Code</div>
+                    <div class="flex-grow-1"><h3>@course.Title</h3><p>@course.FacultyName · @course.Day @course.StartTime-@course.EndTime · @course.Room</p><div class="meta-line"><span>@Campus.EnrollmentCount(course.Id) students</span><span>@course.Department</span><span>@(course.IsOpenForEnrollment ? "Registration Open" : "Registration Closed")</span></div></div>
+                </div>
+            }
+        </div>
+        <div class="glass-card span-5">
+            <div class="section-head"><div><h2>Live department activity</h2><p>Every update records here.</p></div></div>
+            @foreach (var activity in Campus.RecentActivities.Take(10))
+            {
+                <div class="activity-line"><i class="bi @activity.Icon"></i><div><strong>@activity.Title</strong><span>@activity.Message</span></div><small>@activity.CreatedAt.ToString("hh:mm tt")</small></div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Campus.OnChange += Refresh;
+    }
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

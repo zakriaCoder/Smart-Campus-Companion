@@ -1,0 +1,169 @@
+@page "/dashboard/profile"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Student")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>My Official Record — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero profile-office-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Student record is registrar-controlled</span>
+            <h1>My Academic Record</h1>
+            <p>Students can view official data only. Corrections are sent to Registrar Office for approval, like a real university portal.</p>
+        </div>
+        <span class="hero-pill"><i class="bi bi-lock-fill me-1"></i> Official Fields Locked</span>
+    </div>
+
+    @if (Student is null)
+    {
+        <div class="empty-state mt-3"><i class="bi bi-person-x"></i><h3>Student record not found</h3><p>Login account is not linked with registrar records.</p></div>
+    }
+    else
+    {
+        <div class="insight-grid mt-3">
+            <div class="insight-card"><i class="bi bi-person-badge"></i><span>Status</span><strong>@Student.RecordStatus</strong></div>
+            <div class="insight-card"><i class="bi bi-mortarboard"></i><span>Semester</span><strong>@Student.Semester</strong></div>
+            <div class="insight-card"><i class="bi bi-award"></i><span>CGPA</span><strong>@Student.Cgpa.ToString("0.00")</strong></div>
+            <div class="insight-card"><i class="bi bi-clipboard-check"></i><span>Attendance</span><strong>@Campus.OverallAttendancePercent(currentEmail)%</strong></div>
+        </div>
+
+        <div class="neo-grid mt-3">
+            <div class="glass-card span-7">
+                <div class="record-lock-banner">
+                    <div class="profile-avatar small">@Student.Initials</div>
+                    <div>
+                        <h2>@Student.FullName</h2>
+                        <p>@Student.StudentId · @Student.Email · @Student.Department</p>
+                    </div>
+                    <span class="status-pill danger ms-auto"><i class="bi bi-shield-lock"></i> Registrar Controlled</span>
+                </div>
+
+                <div class="info-table premium mt-3">
+                    <div><span>Full Name</span><strong>@Student.FullName</strong><em>locked</em></div>
+                    <div><span>Student ID</span><strong>@Student.StudentId</strong><em>locked</em></div>
+                    <div><span>Email</span><strong>@Student.Email</strong><em>locked</em></div>
+                    <div><span>Department</span><strong>@Student.Department</strong><em>locked</em></div>
+                    <div><span>Semester / Section</span><strong>@Student.Semester</strong><em>locked</em></div>
+                    <div><span>CGPA</span><strong>@Student.Cgpa.ToString("0.00") / 4.00</strong><em>locked</em></div>
+                    <div><span>Phone</span><strong>@Student.Phone</strong><em>request change</em></div>
+                    <div><span>Address</span><strong>@Student.Address</strong><em>request change</em></div>
+                    <div><span>Guardian</span><strong>@Student.GuardianName</strong><em>request change</em></div>
+                </div>
+
+                <div class="workflow-note mt-3">
+                    <i class="bi bi-info-circle"></i>
+                    <span>Real rule: student cannot directly edit name, ID, department, semester, CGPA, or status. Registrar approves changes and the update reflects everywhere.</span>
+                </div>
+            </div>
+
+            <div class="glass-card span-5">
+                <div class="section-head"><div><h2>Request correction</h2><p>Send a change request instead of direct editing.</p></div></div>
+                <select class="form-select smart-input" @bind="fieldName">
+                    <option>Phone</option>
+                    <option>Address</option>
+                    <option>Guardian</option>
+                    <option>Full Name</option>
+                    <option>Semester</option>
+                </select>
+                <input class="form-control smart-input" placeholder="Requested new value" @bind="requestedValue" @bind:event="oninput" />
+                <textarea class="form-control smart-input" rows="4" placeholder="Reason / proof note" @bind="reason"></textarea>
+                <button class="btn primary-action w-100" @onclick="SendCorrection"><i class="bi bi-send me-1"></i>Send to Registrar</button>
+
+                <hr />
+
+                <div class="section-head"><div><h2>Document request</h2><p>Transcript, bonafide, enrollment letter.</p></div></div>
+                <select class="form-select smart-input" @bind="docType">
+                    <option>Bonafide Certificate</option>
+                    <option>Enrollment Verification Letter</option>
+                    <option>Unofficial Transcript</option>
+                    <option>Character Certificate</option>
+                </select>
+                <input class="form-control smart-input" placeholder="Purpose" @bind="docPurpose" @bind:event="oninput" />
+                <button class="btn soft-action w-100" @onclick="RequestDocument"><i class="bi bi-file-earmark-text me-1"></i>Request Document</button>
+            </div>
+
+            <div class="glass-card span-6">
+                <div class="section-head"><div><h2>Correction history</h2><p>Registrar decision appears here.</p></div></div>
+                @foreach (var req in Campus.GetProfileRequestsForStudent(currentEmail))
+                {
+                    <div class="request-card @req.Status.ToLowerInvariant()">
+                        <div><strong>@req.FieldName</strong><p>@req.CurrentValue → @req.RequestedValue</p><small>@req.Reason · @req.RequestedOn.ToString("MMM dd, hh:mm tt")</small></div>
+                        <span class="status-pill @StatusTone(req.Status)">@req.Status</span>
+                    </div>
+                }
+            </div>
+
+            <div class="glass-card span-6">
+                <div class="section-head"><div><h2>Document desk</h2><p>Registrar office processing status.</p></div></div>
+                @foreach (var doc in Campus.GetDocumentRequestsForStudent(currentEmail))
+                {
+                    <div class="request-card @doc.Status.ToLowerInvariant()">
+                        <div><strong>@doc.Type</strong><p>@doc.Purpose</p><small>@doc.RequestedOn.ToString("MMM dd, hh:mm tt") @(string.IsNullOrWhiteSpace(doc.OfficeNote) ? "" : $"· {doc.OfficeNote}")</small></div>
+                        <span class="status-pill @StatusTone(doc.Status)">@doc.Status</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private string currentEmail = "241844@students.au.edu.pk";
+    private string fieldName = "Phone";
+    private string requestedValue = "";
+    private string reason = "";
+    private string docType = "Bonafide Certificate";
+    private string docPurpose = "Internship application";
+
+    private PortalStudent? Student => Campus.FindStudentByEmail(currentEmail);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        currentEmail = state.User.Identity?.Name ?? currentEmail;
+    }
+
+    private string CurrentValue()
+    {
+        if (Student is null) return "";
+        return fieldName switch
+        {
+            "Phone" => Student.Phone,
+            "Address" => Student.Address,
+            "Guardian" => Student.GuardianName,
+            "Full Name" => Student.FullName,
+            "Semester" => Student.Semester,
+            _ => ""
+        };
+    }
+
+    private void SendCorrection()
+    {
+        Campus.SubmitProfileCorrectionRequest(currentEmail, fieldName, CurrentValue(), requestedValue, reason);
+        requestedValue = "";
+        reason = "";
+    }
+
+    private void RequestDocument()
+    {
+        Campus.RequestDocument(currentEmail, docType, docPurpose);
+        docPurpose = "";
+    }
+
+    private static string StatusTone(string status) => status switch
+    {
+        "Approved" => "success",
+        "Ready" => "success",
+        "Rejected" => "danger",
+        "Pending" => "warning",
+        _ => "primary"
+    };
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

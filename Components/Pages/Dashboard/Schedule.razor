@@ -1,0 +1,167 @@
+@page "/dashboard/schedule"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Student")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Schedule — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero schedule-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Auto timetable</span>
+            <h1>Weekly Timetable</h1>
+            <p>Enrolled course timings come from HOD/faculty assignment. You can also add personal study blocks for planning.</p>
+        </div>
+        <button class="btn primary-action" @onclick="ShowAllDays"><i class="bi bi-calendar-week me-1"></i> Full Week</button>
+    </div>
+
+    <div class="week-strip mt-3">
+        <button class="week-day @(filterDay == "All Days" ? "active" : "")" @onclick="ShowAllDays"><strong>All</strong><span>@AllItems.Count()</span></button>
+        @foreach (var d in Days)
+        {
+            <button class="week-day @(filterDay == d ? "active" : "")" @onclick="@(() => SelectDay(d))"><strong>@d.Substring(0, 3)</strong><span>@AllItems.Count(x => x.Day == d)</span></button>
+        }
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-4 sticky-card">
+            <div class="section-head"><div><h2>@(editingId is null ? "Add Study Block" : "Edit Study Block")</h2><p>Personal blocks update instantly.</p></div></div>
+            <input class="form-control smart-input" placeholder="Title e.g. VP project practice" @bind="courseName" @bind:event="oninput" />
+            <div class="two-cols">
+                <select class="form-select smart-input" @bind="day">@foreach (var d in Days){<option value="@d">@d</option>}</select>
+                <select class="form-select smart-input" @bind="classType"><option>Personal</option><option>Study</option><option>Demo</option><option>Meeting</option></select>
+            </div>
+            <div class="two-cols">
+                <input class="form-control smart-input" type="time" value="@startTime" @onchange="SetStartTime" />
+                <input class="form-control smart-input" type="time" value="@endTime" @onchange="SetEndTime" />
+            </div>
+            <input class="form-control smart-input" placeholder="Location" @bind="room" @bind:event="oninput" />
+            <input class="form-control smart-input" placeholder="With / Teacher" @bind="teacher" @bind:event="oninput" />
+            <button class="btn primary-action w-100" @onclick="SaveSchedule">@(editingId is null ? "Add Block" : "Update Block")</button>
+            @if (editingId is not null)
+            {
+                <button class="btn soft-action w-100 mt-2" @onclick="ResetForm">Cancel</button>
+            }
+        </div>
+
+        <div class="glass-card span-8">
+            <div class="toolbar-grid two">
+                <input class="form-control smart-input" placeholder="Search course, teacher, room..." @bind="search" @bind:event="oninput" />
+                <select class="form-select smart-input" @bind="sourceFilter"><option value="All">Official + Personal</option><option value="Official">Official classes</option><option value="Personal">Personal blocks</option></select>
+            </div>
+
+            @foreach (var group in FilteredItems.GroupBy(x => x.Day).OrderBy(g => DayIndex(g.Key)))
+            {
+                <div class="day-section">
+                    <h3>@group.Key</h3>
+                    @foreach (var item in group.OrderBy(x => x.StartTime))
+                    {
+                        <div class="timeline-item class-item @(item.Source == "Official" ? "official" : "")">
+                            <div class="time-box">@item.StartTime<br /><small>@item.EndTime</small></div>
+                            <div class="flex-grow-1">
+                                <h4>@item.Course</h4>
+                                <p>@item.Room · @item.Teacher</p>
+                            </div>
+                            <span class="soft-badge">@item.Source</span>
+                            @if (item.Source == "Personal")
+                            {
+                                <button class="mini-action" @onclick="@(() => EditSchedule(item.Id))"><i class="bi bi-pencil"></i></button>
+                                <button class="mini-action danger" @onclick="@(() => Campus.DeleteSchedule(item.Id))"><i class="bi bi-trash"></i></button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private readonly string[] Days = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+    private string currentEmail = "241844@students.au.edu.pk";
+    private string search = "";
+    private string filterDay = "All Days";
+    private string sourceFilter = "All";
+    private string? editingId;
+    private string courseName = "";
+    private string day = "Monday";
+    private string startTime = "09:00";
+    private string endTime = "10:30";
+    private string room = "CS Lab";
+    private string teacher = "";
+    private string classType = "Study";
+
+    private IEnumerable<ScheduleViewItem> AllItems
+    {
+        get
+        {
+            var official = Campus.GetStudentCourses(currentEmail).Select(c => new ScheduleViewItem(c.Id, c.Code + " - " + c.Title, c.Day, c.StartTime, c.EndTime, c.Room, c.FacultyName, "Official"));
+            var personal = Campus.Schedule.Select(s => new ScheduleViewItem(s.Id, s.Course, s.Day, s.StartTime, s.EndTime, s.Room, s.Teacher, "Personal"));
+            return official.Concat(personal);
+        }
+    }
+
+    private IEnumerable<ScheduleViewItem> FilteredItems => AllItems
+        .Where(s => filterDay == "All Days" || s.Day == filterDay)
+        .Where(s => sourceFilter == "All" || s.Source == sourceFilter)
+        .Where(s => string.IsNullOrWhiteSpace(search) || s.Course.Contains(search, StringComparison.OrdinalIgnoreCase) || s.Teacher.Contains(search, StringComparison.OrdinalIgnoreCase) || s.Room.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        currentEmail = state.User.Identity?.Name ?? currentEmail;
+    }
+
+    private int DayIndex(string value)
+    {
+        var index = Array.IndexOf(Days, value);
+        return index < 0 ? 99 : index;
+    }
+
+    private void SelectDay(string selectedDay) => filterDay = selectedDay;
+    private void ShowAllDays() => filterDay = "All Days";
+    private void SetStartTime(ChangeEventArgs e) => startTime = e.Value?.ToString() ?? "09:00";
+    private void SetEndTime(ChangeEventArgs e) => endTime = e.Value?.ToString() ?? "10:30";
+
+    private void SaveSchedule()
+    {
+        if (editingId is null) Campus.AddSchedule(courseName, day, startTime, endTime, room, teacher, classType);
+        else Campus.UpdateSchedule(editingId, courseName, day, startTime, endTime, room, teacher, classType);
+        ResetForm();
+    }
+
+    private void EditSchedule(string id)
+    {
+        var item = Campus.Schedule.FirstOrDefault(s => s.Id == id);
+        if (item is null) return;
+        editingId = item.Id;
+        courseName = item.Course;
+        day = item.Day;
+        startTime = item.StartTime;
+        endTime = item.EndTime;
+        room = item.Room;
+        teacher = item.Teacher;
+        classType = item.Type;
+    }
+
+    private void ResetForm()
+    {
+        editingId = null;
+        courseName = "";
+        day = "Monday";
+        startTime = "09:00";
+        endTime = "10:30";
+        room = "CS Lab";
+        teacher = "";
+        classType = "Study";
+    }
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+
+    private sealed record ScheduleViewItem(string Id, string Course, string Day, string StartTime, string EndTime, string Room, string Teacher, string Source);
+}

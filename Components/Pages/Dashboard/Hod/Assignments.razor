@@ -1,0 +1,185 @@
+﻿@page "/dashboard/hod/assignments"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.HodLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "HOD")]
+
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Assignment Monitoring - SmartCampus</PageTitle>
+
+<div class="sc-profile-page">
+    <div class="sc-banner" style="background:linear-gradient(135deg,#581c87,#7c3aed)">
+        <div class="sc-banner-inner">
+            <div class="sc-banner-avatar" style="background:#7c3aed">
+                <i class="bi bi-clipboard-check"></i>
+            </div>
+            <div class="sc-banner-info">
+                <h2 class="sc-banner-name">Assignment Monitoring</h2>
+                <p class="sc-banner-meta">@department assignment deadlines, status, and faculty updates</p>
+            </div>
+        </div>
+    </div>
+
+    <div style="max-width:1150px;margin:1.5rem auto;padding:0 1.5rem">
+        <div class="sc-grid" style="grid-template-columns:repeat(4,1fr)">
+            <div class="sc-card text-center">
+                <div class="sc-stat-num sc-stat--blue">@assignments.Count</div>
+                <div class="sc-stat-label">Total</div>
+            </div>
+            <div class="sc-card text-center">
+                <div class="sc-stat-num sc-stat--green">@assignments.Count(a => a.Status == "Submitted")</div>
+                <div class="sc-stat-label">Submitted</div>
+            </div>
+            <div class="sc-card text-center">
+                <div class="sc-stat-num sc-stat--orange">@assignments.Count(a => a.Status == "Pending")</div>
+                <div class="sc-stat-label">Pending</div>
+            </div>
+            <div class="sc-card text-center">
+                <div class="sc-stat-num sc-stat--red">@assignments.Count(a => a.Status == "Late")</div>
+                <div class="sc-stat-label">Late</div>
+            </div>
+        </div>
+
+        <div class="sc-card mb-3">
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <input class="form-control sc-input"
+                           placeholder="Search assignment, course, faculty..."
+                           @bind="searchText"
+                           @bind:event="oninput" />
+                </div>
+                <div class="col-md-3">
+                    <select class="form-control sc-input" @bind="statusFilter">
+                        <option value="All">All Status</option>
+                        <option>Submitted</option>
+                        <option>Pending</option>
+                        <option>Late</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-control sc-input" @bind="courseFilter">
+                        <option value="All">All Courses</option>
+                        @foreach (var course in assignments.Select(a => a.Course).Distinct())
+                        {
+                            <option>@course</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="sc-card">
+            <div class="sc-card-title">ASSIGNMENT TRACKING</div>
+
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Assignment</th>
+                            <th>Course</th>
+                            <th>Faculty</th>
+                            <th>Deadline</th>
+                            <th>Submissions</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in FilteredAssignments)
+                        {
+                            <tr>
+                                <td><strong>@item.Title</strong></td>
+                                <td>@item.Course</td>
+                                <td>@item.FacultyName</td>
+                                <td>@item.Deadline</td>
+                                <td>@item.Submissions/@item.TotalStudents</td>
+                                <td>
+                                    <span class="badge @StatusClass(item.Status)">
+                                        @item.Status
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string department = "";
+    private string searchText = "";
+    private string statusFilter = "All";
+    private string courseFilter = "All";
+    private List<HodAssignment> assignments = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        department = auth.User.FindFirst("Department")?.Value ?? "Computer Science";
+        assignments = BuildAssignments(department);
+    }
+
+    private IEnumerable<HodAssignment> FilteredAssignments
+    {
+        get
+        {
+            var query = assignments.AsEnumerable();
+
+            if (statusFilter != "All")
+                query = query.Where(a => a.Status == statusFilter);
+
+            if (courseFilter != "All")
+                query = query.Where(a => a.Course == courseFilter);
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var term = searchText.Trim();
+                query = query.Where(a =>
+                    a.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    a.Course.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    a.FacultyName.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query.OrderBy(a => a.Deadline);
+        }
+    }
+
+    private static string StatusClass(string status) => status switch
+    {
+        "Submitted" => "bg-success",
+        "Pending" => "bg-warning text-dark",
+        "Late" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    private static List<HodAssignment> BuildAssignments(string department)
+    {
+        if (department.Equals("Software Engineering", StringComparison.OrdinalIgnoreCase))
+        {
+            return new()
+            {
+                new("SRS Document", "SE-201", "Ms. Nadia Khan", "20-May-2026", 32, 36, "Pending"),
+                new("Test Case Report", "SE-305", "Ms. Nadia Khan", "22-May-2026", 29, 34, "Pending"),
+                new("FYP Proposal Review", "SE-410", "Dr. Sara Ahmed", "18-May-2026", 28, 28, "Submitted")
+            };
+        }
+
+        return new()
+        {
+            new("Blazor CRUD Task", "CS-284L", "Mr. Bilal Raza", "20-May-2026", 38, 42, "Pending"),
+            new("Database ERD", "CS-301", "Dr. Kamran Malik", "21-May-2026", 40, 40, "Submitted"),
+            new("AI Search Assignment", "CS-401", "Dr. Kamran Malik", "17-May-2026", 31, 39, "Late"),
+            new("PF Lab Manual", "CS-101", "Mr. Bilal Raza", "24-May-2026", 45, 48, "Pending")
+        };
+    }
+
+    private sealed record HodAssignment(
+        string Title,
+        string Course,
+        string FacultyName,
+        string Deadline,
+        int Submissions,
+        int TotalStudents,
+        string Status);
+}

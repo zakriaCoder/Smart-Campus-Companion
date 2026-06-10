@@ -1,0 +1,113 @@
+@page "/dashboard/classrooms"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Student")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>GCR Course Rooms — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero classroom-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> GCR-style course hub</span>
+            <h1>Course Rooms</h1>
+            <p>Every enrolled course has a room where faculty announcements, resources, assignments, and join links appear together.</p>
+        </div>
+        <span class="hero-pill">@Campus.GetStudentCourses(currentEmail).Count() Joined Rooms</span>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-4 sticky-card">
+            <div class="section-head"><div><h2>My Rooms</h2><p>Rooms are created from enrolled courses.</p></div></div>
+            @foreach (var c in Campus.GetStudentCourses(currentEmail))
+            {
+                <button class="course-room-tile @(courseFilter == c.Id ? "active" : "")" @onclick="@(() => SelectCourse(c.Id))">
+                    <span>@c.Code</span>
+                    <strong>@c.Title</strong>
+                    <small>@c.FacultyName · @c.ClassroomCode</small>
+                </button>
+            }
+            <button class="course-room-tile @(courseFilter == "All" ? "active" : "")" @onclick="ShowAll"><span>ALL</span><strong>Unified Stream</strong><small>All enrolled course posts</small></button>
+        </div>
+
+        <div class="glass-card span-8">
+            <div class="toolbar-grid two">
+                <input class="form-control smart-input" placeholder="Search post, course, faculty..." @bind="search" @bind:event="oninput" />
+                <select class="form-select smart-input" @bind="typeFilter">
+                    <option value="All">All Types</option>
+                    <option>Announcement</option>
+                    <option>Assignment</option>
+                    <option>Resource</option>
+                    <option>Post</option>
+                    <option>System</option>
+                </select>
+            </div>
+
+            @foreach (var c in VisibleCourses)
+            {
+                <div class="classroom-header-card">
+                    <div><span class="course-code big">@c.Code</span></div>
+                    <div class="flex-grow-1"><h3>@c.Title</h3><p>@c.FacultyName · @c.Day @c.StartTime-@c.EndTime · @c.Room</p></div>
+                    <a class="btn primary-action" href="@c.ClassroomLink" target="_blank"><i class="bi bi-box-arrow-up-right me-1"></i>Join GCR</a>
+                </div>
+            }
+
+            <div class="section-head mt-3"><div><h2>Live Stream</h2><p>Faculty posts are visible here instantly.</p></div></div>
+            @foreach (var post in FilteredPosts)
+            {
+                <div class="classroom-post">
+                    <div class="post-type @post.Type.ToLowerInvariant()"><i class="bi @Icon(post.Type)"></i></div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 flex-wrap"><h3>@post.Title</h3><span class="soft-badge">@post.Type</span><span class="soft-badge success">@post.CourseCode</span></div>
+                        <p>@post.Message</p>
+                        <small>@post.PostedBy · @post.PostedOn.ToString("MMM dd, hh:mm tt")</small>
+                    </div>
+                </div>
+            }
+            @if (!FilteredPosts.Any())
+            {
+                <div class="empty-state"><i class="bi bi-easel2"></i><h3>No classroom posts</h3><p>Faculty announcements, assignments and resources will appear here.</p></div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private string currentEmail = "241844@students.au.edu.pk";
+    private string search = "";
+    private string typeFilter = "All";
+    private string courseFilter = "All";
+
+    private IEnumerable<PortalCourse> VisibleCourses => courseFilter == "All"
+        ? Campus.GetStudentCourses(currentEmail)
+        : Campus.GetStudentCourses(currentEmail).Where(c => c.Id == courseFilter);
+
+    private IEnumerable<ClassroomPost> FilteredPosts => Campus.GetClassroomPostsForStudent(currentEmail)
+        .Where(p => courseFilter == "All" || p.CourseId == courseFilter)
+        .Where(p => typeFilter == "All" || p.Type == typeFilter)
+        .Where(p => string.IsNullOrWhiteSpace(search) || p.Title.Contains(search, StringComparison.OrdinalIgnoreCase) || p.Message.Contains(search, StringComparison.OrdinalIgnoreCase) || p.CourseCode.Contains(search, StringComparison.OrdinalIgnoreCase) || p.PostedBy.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        currentEmail = state.User.Identity?.Name ?? currentEmail;
+    }
+
+    private void SelectCourse(string id) => courseFilter = id;
+    private void ShowAll() => courseFilter = "All";
+
+    private static string Icon(string type) => type switch
+    {
+        "Announcement" => "bi-megaphone",
+        "Assignment" => "bi-journal-check",
+        "Resource" => "bi-folder2-open",
+        "System" => "bi-lightning-charge",
+        _ => "bi-chat-square-text"
+    };
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

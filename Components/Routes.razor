@@ -1,0 +1,43 @@
+﻿@using Microsoft.AspNetCore.Components.Routing
+@using SmartCampus.Components.Layout
+
+<Router AppAssembly="@typeof(App).Assembly">
+
+    <Found Context="routeData">
+
+        <RouteView RouteData="@routeData"
+                   DefaultLayout="@typeof(AuthLayout)" />
+
+        <FocusOnNavigate RouteData="@routeData"
+                         Selector="h1" />
+
+    </Found>
+
+    <NotFound>
+
+        <PageTitle>Not Found</PageTitle>
+
+        <LayoutView Layout="@typeof(AuthLayout)">
+
+            <div class="d-flex justify-content-center align-items-center vh-100">
+
+                <div class="text-center">
+
+                    <h2 class="fw-bold">
+                        404 — Page Not Found
+                    </h2>
+
+                    <a href="/account/login"
+                       class="btn btn-primary mt-3">
+                        Go to Login
+                    </a>
+
+                </div>
+
+            </div>
+
+        </LayoutView>
+
+    </NotFound>
+
+</Router>

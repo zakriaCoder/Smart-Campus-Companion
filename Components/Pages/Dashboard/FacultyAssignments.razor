@@ -1,0 +1,68 @@
+@page "/dashboard/faculty/assignments"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.FacultyLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Faculty")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Manage Assignments — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero assignment-hero"><div><span class="eyebrow"><span class="pulse-dot"></span> Faculty assignment publisher</span><h1>Post & Manage Assignments</h1><p>When you post an assignment, enrolled students instantly see it in their assignment tracker and notifications.</p></div></div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-4 sticky-card">
+            <div class="section-head"><div><h2>Create assignment</h2><p>Linked to your assigned courses.</p></div></div>
+            <select class="form-select smart-input" @bind="courseId">@foreach (var c in MyCourses){<option value="@c.Id">@c.Code - @c.Title</option>}</select>
+            <input class="form-control smart-input" placeholder="Assignment title" @bind="title" @bind:event="oninput" />
+            <textarea class="form-control smart-input" rows="4" placeholder="Description" @bind="description"></textarea>
+            <div class="two-cols"><input class="form-control smart-input" type="date" @bind="dueDate" /><input class="form-control smart-input" type="number" @bind="marks" /></div>
+            <button class="btn primary-action w-100" @onclick="PostAssignment">Post Assignment</button>
+        </div>
+
+        <div class="glass-card span-8">
+            <div class="section-head"><div><h2>Posted assignments</h2><p>Delete or monitor submissions from here.</p></div></div>
+            @foreach (var item in MyAssignments)
+            {
+                <div class="assignment-card">
+                    <div class="assignment-date"><strong>@item.DueDate.ToString("dd")</strong><span>@item.DueDate.ToString("MMM")</span></div>
+                    <div class="flex-grow-1"><h3>@item.Title</h3><p>@item.Description</p><div class="meta-line"><span>@item.CourseCode</span><span>@item.Marks marks</span><span>@Campus.Submissions.Count(s => s.AssignmentId == item.Id) submissions</span></div></div>
+                    <button class="mini-action danger" @onclick="@(() => Campus.DeleteCourseAssignment(item.Id))"><i class="bi bi-trash"></i></button>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private string facultyEmail = "bilal.raza@au.edu.pk";
+    private string courseId = "";
+    private string title = "";
+    private string description = "";
+    private DateTime dueDate = DateTime.Today.AddDays(3);
+    private int marks = 50;
+    private IEnumerable<PortalCourse> MyCourses => Campus.GetCoursesForFaculty(facultyEmail);
+    private IEnumerable<PortalAssignment> MyAssignments => Campus.CourseAssignments.Where(a => a.TeacherEmail.Equals(facultyEmail, StringComparison.OrdinalIgnoreCase)).OrderByDescending(a => a.CreatedAt);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        facultyEmail = state.User.Identity?.Name ?? facultyEmail;
+        courseId = MyCourses.FirstOrDefault()?.Id ?? "";
+    }
+
+    private void PostAssignment()
+    {
+        if (string.IsNullOrWhiteSpace(courseId)) return;
+        Campus.CreateCourseAssignment(courseId, title, description, dueDate, marks, facultyEmail);
+        title = "";
+        description = "";
+        dueDate = DateTime.Today.AddDays(3);
+        marks = 50;
+    }
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

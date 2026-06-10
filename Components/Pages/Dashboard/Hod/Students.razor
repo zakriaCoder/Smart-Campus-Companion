@@ -1,0 +1,125 @@
+﻿@page "/dashboard/hod/students"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.HodLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "HOD")]
+
+@inject UserStoreService UserStore
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Department Students - SmartCampus</PageTitle>
+
+<div class="sc-profile-page">
+    <div class="sc-banner" style="background:linear-gradient(135deg,#064e3b,#16a34a)">
+        <div class="sc-banner-inner">
+            <div class="sc-banner-avatar" style="background:#16a34a">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="sc-banner-info">
+                <h2 class="sc-banner-name">Department Students</h2>
+                <p class="sc-banner-meta">@department enrolled students and semester overview</p>
+            </div>
+        </div>
+    </div>
+
+    <div style="max-width:1100px;margin:1.5rem auto;padding:0 1.5rem">
+        <div class="sc-card mb-3">
+            <div class="row g-2">
+                <div class="col-md-8">
+                    <input class="form-control sc-input"
+                           placeholder="Search student by name, email, ID..."
+                           @bind="searchText"
+                           @bind:event="oninput" />
+                </div>
+                <div class="col-md-4">
+                    <select class="form-control sc-input" @bind="semesterFilter">
+                        <option value="All">All Semesters</option>
+                        <option value="II-A">II-A</option>
+                        <option value="IV-C">IV-C</option>
+                        <option value="VI-B">VI-B</option>
+                        <option value="VIII-A">VIII-A</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="sc-card">
+            <div class="sc-card-title">STUDENT DIRECTORY</div>
+
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Registration ID</th>
+                            <th>Semester / Section</th>
+                            <th>Email</th>
+                            <th>Academic Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var student in FilteredStudents)
+                        {
+                            <tr>
+                                <td><strong>@student.FullName</strong></td>
+                                <td>@student.StudentId</td>
+                                <td>@GetSemester(student)</td>
+                                <td>@student.Email</td>
+                                <td><span class="badge bg-success">Enrolled</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string department = "";
+    private string searchText = "";
+    private string semesterFilter = "All";
+    private List<AppUser> students = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        department = auth.User.FindFirst("Department")?.Value ?? "Computer Science";
+
+        students = UserStore.GetByRole(UserRole.Student)
+            .Where(u => u.Department.Equals(department, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private IEnumerable<AppUser> FilteredStudents
+    {
+        get
+        {
+            var query = students.AsEnumerable();
+
+            if (semesterFilter != "All")
+                query = query.Where(s => GetSemester(s).Equals(semesterFilter, StringComparison.OrdinalIgnoreCase));
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var term = searchText.Trim();
+                query = query.Where(s =>
+                    s.FullName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    s.Email.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    s.StudentId.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query.OrderBy(s => s.FullName);
+        }
+    }
+
+    private static string GetSemester(AppUser student)
+    {
+        if (student.Designation.Contains("—"))
+            return student.Designation.Split("—").Last().Trim();
+
+        if (student.Designation.Contains("-"))
+            return student.Designation.Split("-").Last().Trim();
+
+        return student.Designation;
+    }
+}

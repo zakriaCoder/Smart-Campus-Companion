@@ -1,0 +1,235 @@
+@page "/dashboard/admin/records"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Registrar Academic Office — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero registrar-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Official academic office</span>
+            <h1>Records, Requests & Verification</h1>
+            <p>This is registrar work: official student records, profile correction approvals, documents, enrollment verification, and university notices.</p>
+        </div>
+        <span class="hero-pill">@(Campus.PendingProfileRequests + Campus.PendingDocumentRequests) Pending</span>
+    </div>
+
+    <div class="toolbar-grid four mt-3">
+        <button class="tab-pill @(tab == "Students" ? "active" : "")" @onclick="ShowStudents"><i class="bi bi-mortarboard"></i> Student Records</button>
+        <button class="tab-pill @(tab == "Requests" ? "active" : "")" @onclick="ShowRequests"><i class="bi bi-pencil-square"></i> Correction Requests</button>
+        <button class="tab-pill @(tab == "Documents" ? "active" : "")" @onclick="ShowDocuments"><i class="bi bi-file-earmark-text"></i> Documents</button>
+        <button class="tab-pill @(tab == "Enrollments" ? "active" : "")" @onclick="ShowEnrollments"><i class="bi bi-journal-check"></i> Enrollments</button>
+    </div>
+
+    @if (tab == "Students")
+    {
+        <div class="neo-grid mt-3">
+            <div class="glass-card span-4 sticky-card">
+                <div class="section-head"><div><h2>Add official student</h2><p>Registrar creates student academic record.</p></div></div>
+                <input class="form-control smart-input" placeholder="Full name" @bind="newName" @bind:event="oninput" />
+                <input class="form-control smart-input" placeholder="Student ID" @bind="newId" @bind:event="oninput" />
+                <input class="form-control smart-input" placeholder="Student email" @bind="newEmail" @bind:event="oninput" />
+                <select class="form-select smart-input" @bind="newDepartment"><option>Computer Science</option><option>Software Engineering</option><option>Electrical Engineering</option></select>
+                <input class="form-control smart-input" placeholder="Semester e.g. IV-C" @bind="newSemester" @bind:event="oninput" />
+                <button class="btn primary-action w-100" @onclick="AddStudent"><i class="bi bi-person-plus me-1"></i>Create Record</button>
+                <div class="workflow-note mt-3"><i class="bi bi-shield-lock"></i><span>Only registrar can create/update official records. Students send requests only.</span></div>
+            </div>
+
+            <div class="glass-card span-8">
+                <div class="toolbar-grid three">
+                    <input class="form-control smart-input" placeholder="Search ID, name, email..." @bind="search" @bind:event="oninput" />
+                    <select class="form-select smart-input" @bind="deptFilter"><option value="All">All Departments</option><option>Computer Science</option><option>Software Engineering</option><option>Electrical Engineering</option></select>
+                    <select class="form-select smart-input" @bind="statusFilter"><option value="All">All Status</option><option>Active</option><option>On Hold</option><option>Graduated</option></select>
+                </div>
+
+                @foreach (var s in FilteredStudents)
+                {
+                    <div class="registrar-student-card @(selectedEmail == s.Email ? "selected" : "")" @onclick="@(() => SelectStudent(s.Email))">
+                        <div class="mini-avatar">@s.Initials</div>
+                        <div class="flex-grow-1"><h3>@s.FullName</h3><p>@s.StudentId · @s.Email · @s.Department</p><div class="meta-line"><span>@s.Semester</span><span>CGPA @s.Cgpa.ToString("0.00")</span><span>@s.Phone</span></div></div>
+                        <span class="status-pill @StatusTone(s.RecordStatus)">@s.RecordStatus</span>
+                    </div>
+                }
+            </div>
+
+            @if (SelectedStudent is not null)
+            {
+                <div class="glass-card span-12">
+                    <div class="section-head"><div><h2>Edit selected official record</h2><p>This update reflects in student profile/dashboard immediately.</p></div></div>
+                    <div class="toolbar-grid five">
+                        <input class="form-control smart-input" @bind="editName" />
+                        <select class="form-select smart-input" @bind="editDepartment"><option>Computer Science</option><option>Software Engineering</option><option>Electrical Engineering</option></select>
+                        <input class="form-control smart-input" @bind="editSemester" />
+                        <input class="form-control smart-input" type="number" step="0.01" @bind="editCgpa" />
+                        <select class="form-select smart-input" @bind="editStatus"><option>Active</option><option>On Hold</option><option>Graduated</option></select>
+                    </div>
+                    <button class="btn primary-action mt-3" @onclick="SaveOfficialRecord"><i class="bi bi-database-check me-1"></i>Save Official Record</button>
+                </div>
+            }
+        </div>
+    }
+    else if (tab == "Requests")
+    {
+        <div class="glass-card mt-3">
+            <div class="section-head"><div><h2>Profile correction requests</h2><p>Student sends request; registrar approves or rejects.</p></div></div>
+            @foreach (var req in Campus.ProfileCorrectionRequests.OrderByDescending(r => r.RequestedOn))
+            {
+                <div class="request-card @req.Status.ToLowerInvariant()">
+                    <div class="flex-grow-1"><strong>@req.StudentName</strong><p>@req.FieldName: @req.CurrentValue → @req.RequestedValue</p><small>@req.Reason · @req.RequestedOn.ToString("MMM dd, hh:mm tt") @(string.IsNullOrWhiteSpace(req.DecisionBy) ? "" : $"· {req.DecisionBy}")</small></div>
+                    <span class="status-pill @StatusTone(req.Status)">@req.Status</span>
+                    @if (req.Status == "Pending")
+                    {
+                        <button class="mini-action success" @onclick="@(() => Campus.ResolveProfileRequest(req.Id, true, registrarName))">Approve</button>
+                        <button class="mini-action danger" @onclick="@(() => Campus.ResolveProfileRequest(req.Id, false, registrarName))">Reject</button>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else if (tab == "Documents")
+    {
+        <div class="glass-card mt-3">
+            <div class="section-head"><div><h2>Document request desk</h2><p>Process transcript, bonafide, enrollment letter and certificates.</p></div></div>
+            @foreach (var doc in Campus.DocumentRequests.OrderByDescending(r => r.RequestedOn))
+            {
+                <div class="request-card @doc.Status.ToLowerInvariant()">
+                    <div class="flex-grow-1"><strong>@doc.StudentName</strong><p>@doc.Type · @doc.Purpose</p><small>@doc.StudentId · @doc.RequestedOn.ToString("MMM dd, hh:mm tt") @(string.IsNullOrWhiteSpace(doc.OfficeNote) ? "" : $"· {doc.OfficeNote}")</small></div>
+                    <span class="status-pill @StatusTone(doc.Status)">@doc.Status</span>
+                    <button class="mini-action success" @onclick="@(() => MarkDocumentReady(doc.Id))">Ready</button>
+                    <button class="mini-action warning" @onclick="@(() => MarkDocumentNeedInfo(doc.Id))">Need Info</button>
+                </div>
+            }
+        </div>
+    }
+    else if (tab == "Enrollments")
+    {
+        <div class="neo-grid mt-3">
+            <div class="glass-card span-8">
+                <div class="toolbar-grid two"><input class="form-control smart-input" placeholder="Search student/course/status..." @bind="enrollSearch" @bind:event="oninput" /><select class="form-select smart-input" @bind="enrollStatus"><option value="All">All Status</option><option>Enrolled</option><option>Dropped</option></select></div>
+                <div class="table-responsive mt-3">
+                    <table class="table smart-table align-middle">
+                        <thead><tr><th>Student</th><th>Course</th><th>Status</th><th>Date</th></tr></thead>
+                        <tbody>
+                        @foreach (var e in FilteredEnrollments)
+                        {
+                            var c = Campus.Courses.FirstOrDefault(x => x.Id == e.CourseId);
+                            <tr><td><strong>@e.StudentName</strong><br /><small>@e.StudentId</small></td><td>@(c?.Code ?? e.CourseId)<br /><small>@(c?.Title ?? "Course")</small></td><td><span class="status-pill @StatusTone(e.Status)">@e.Status</span></td><td>@e.EnrolledOn.ToString("MMM dd")</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="glass-card span-4">
+                <div class="section-head"><div><h2>Official notice</h2><p>Registrar announcement to all students.</p></div></div>
+                <input class="form-control smart-input" placeholder="Title" @bind="noticeTitle" @bind:event="oninput" />
+                <textarea class="form-control smart-input" rows="5" placeholder="Message" @bind="noticeMessage"></textarea>
+                <button class="btn primary-action w-100" @onclick="PostRegistrarNotice"><i class="bi bi-megaphone me-1"></i>Send Official Notice</button>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private string tab = "Students";
+    private string registrarName = "Registrar Officer";
+    private string search = "";
+    private string deptFilter = "All";
+    private string statusFilter = "All";
+    private string selectedEmail = "";
+    private string newName = "";
+    private string newId = "";
+    private string newEmail = "";
+    private string newDepartment = "Computer Science";
+    private string newSemester = "I-A";
+    private string editName = "";
+    private string editDepartment = "Computer Science";
+    private string editSemester = "";
+    private double editCgpa;
+    private string editStatus = "Active";
+    private string enrollSearch = "";
+    private string enrollStatus = "All";
+    private string noticeTitle = "";
+    private string noticeMessage = "";
+
+    private PortalStudent? SelectedStudent => Campus.FindStudentByEmail(selectedEmail);
+
+    private IEnumerable<PortalStudent> FilteredStudents => Campus.Students
+        .Where(s => deptFilter == "All" || s.Department == deptFilter)
+        .Where(s => statusFilter == "All" || s.RecordStatus == statusFilter)
+        .Where(s => string.IsNullOrWhiteSpace(search) || s.FullName.Contains(search, StringComparison.OrdinalIgnoreCase) || s.StudentId.Contains(search, StringComparison.OrdinalIgnoreCase) || s.Email.Contains(search, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(s => s.StudentId);
+
+    private IEnumerable<CourseEnrollment> FilteredEnrollments => Campus.Enrollments
+        .Where(e => enrollStatus == "All" || e.Status == enrollStatus)
+        .Where(e => string.IsNullOrWhiteSpace(enrollSearch) || e.StudentName.Contains(enrollSearch, StringComparison.OrdinalIgnoreCase) || e.StudentId.Contains(enrollSearch, StringComparison.OrdinalIgnoreCase) || (Campus.Courses.FirstOrDefault(c => c.Id == e.CourseId)?.Code ?? "").Contains(enrollSearch, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(e => e.EnrolledOn);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        registrarName = state.User.FindFirst("FullName")?.Value ?? "Registrar Officer";
+        SelectStudent(Campus.Students.FirstOrDefault()?.Email ?? "");
+    }
+
+    private void ShowStudents() => tab = "Students";
+    private void ShowRequests() => tab = "Requests";
+    private void ShowDocuments() => tab = "Documents";
+    private void ShowEnrollments() => tab = "Enrollments";
+
+    private void AddStudent()
+    {
+        Campus.AddStudentRecord(newName, newId, newEmail, newDepartment, newSemester);
+        newName = ""; newId = ""; newEmail = ""; newSemester = "I-A";
+    }
+
+    private void SelectStudent(string email)
+    {
+        selectedEmail = email;
+        var s = SelectedStudent;
+        if (s is null) return;
+        editName = s.FullName;
+        editDepartment = s.Department;
+        editSemester = s.Semester;
+        editCgpa = s.Cgpa;
+        editStatus = s.RecordStatus;
+    }
+
+    private void SaveOfficialRecord()
+    {
+        if (SelectedStudent is null) return;
+        Campus.UpdateStudentOfficialRecord(SelectedStudent.Email, editName, editDepartment, editSemester, editCgpa, editStatus);
+    }
+
+    private void MarkDocumentReady(string id) => Campus.ProcessDocumentRequest(id, "Ready", "Ready for collection from Registrar Office");
+
+    private void MarkDocumentNeedInfo(string id) => Campus.ProcessDocumentRequest(id, "Need Info", "Please submit missing verification details");
+
+    private void PostRegistrarNotice()
+    {
+        Campus.PostAnnouncement(noticeTitle, noticeMessage, "Students", "", registrarName, "Registrar");
+        noticeTitle = "";
+        noticeMessage = "";
+    }
+
+    private static string StatusTone(string status) => status switch
+    {
+        "Active" => "success",
+        "Approved" => "success",
+        "Ready" => "success",
+        "Enrolled" => "success",
+        "Pending" => "warning",
+        "Need Info" => "warning",
+        "On Hold" => "warning",
+        "Dropped" => "danger",
+        "Rejected" => "danger",
+        _ => "primary"
+    };
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

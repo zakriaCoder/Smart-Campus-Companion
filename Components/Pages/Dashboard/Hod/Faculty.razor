@@ -1,0 +1,115 @@
+﻿@page "/dashboard/hod/faculty"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.HodLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "HOD")]
+
+@inject UserStoreService UserStore
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Department Faculty - SmartCampus</PageTitle>
+
+<div class="sc-profile-page">
+    <div class="sc-banner" style="background:linear-gradient(135deg,#1e3a5f,#2563eb)">
+        <div class="sc-banner-inner">
+            <div class="sc-banner-avatar" style="background:#1d4ed8">
+                <i class="bi bi-person-video3"></i>
+            </div>
+            <div class="sc-banner-info">
+                <h2 class="sc-banner-name">Department Faculty</h2>
+                <p class="sc-banner-meta">@department faculty members and workload overview</p>
+            </div>
+        </div>
+    </div>
+
+    <div style="max-width:1100px;margin:1.5rem auto;padding:0 1.5rem">
+        <div class="sc-card mb-3">
+            <input class="form-control sc-input"
+                   placeholder="Search faculty by name, email, designation..."
+                   @bind="searchText"
+                   @bind:event="oninput" />
+        </div>
+
+        <div class="sc-card">
+            <div class="sc-card-title">FACULTY DIRECTORY</div>
+
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Faculty</th>
+                            <th>Employee ID</th>
+                            <th>Designation</th>
+                            <th>Courses</th>
+                            <th>Workload</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var faculty in FilteredFaculty)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@faculty.FullName</strong><br />
+                                    <small class="text-muted">@faculty.Email</small>
+                                </td>
+                                <td>@faculty.StudentId</td>
+                                <td>@faculty.Designation</td>
+                                <td>@GetCourseCount(faculty.FullName)</td>
+                                <td>@GetWorkload(faculty.FullName)</td>
+                                <td><span class="badge bg-success">Active</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string department = "";
+    private string searchText = "";
+    private List<AppUser> facultyList = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        department = auth.User.FindFirst("Department")?.Value ?? "Computer Science";
+
+        facultyList = UserStore.GetByRole(UserRole.Faculty)
+            .Where(u => u.Department.Equals(department, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private IEnumerable<AppUser> FilteredFaculty
+    {
+        get
+        {
+            var query = facultyList.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var term = searchText.Trim();
+                query = query.Where(f =>
+                    f.FullName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    f.Email.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    f.Designation.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query.OrderBy(f => f.FullName);
+        }
+    }
+
+    private static int GetCourseCount(string name)
+    {
+        if (name.Contains("Bilal", StringComparison.OrdinalIgnoreCase))
+            return 2;
+
+        return 1;
+    }
+
+    private static string GetWorkload(string name)
+    {
+        return GetCourseCount(name) >= 2 ? "Medium" : "Normal";
+    }
+}

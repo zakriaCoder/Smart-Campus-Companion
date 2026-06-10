@@ -1,0 +1,45 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject CampusRealtimeService Campus
+
+<CascadingAuthenticationState>
+    <AuthorizeView Roles="Faculty">
+        <Authorized>
+            <div class="campus-shell faculty-shell">
+                <nav class="campus-navbar navbar navbar-expand-xl faculty-nav">
+                    <div class="container-fluid px-4">
+                        <a class="navbar-brand campus-brand" href="/dashboard/faculty">
+                            <span class="brand-mark"><i class="bi bi-person-video3"></i></span>
+                            <span>Faculty<span>Studio</span></span>
+                        </a>
+                        <div class="collapse navbar-collapse justify-content-center">
+                            <ul class="navbar-nav campus-nav gap-1">
+                                <li class="nav-item"><a class="nav-link @(IsActiveExact("/dashboard/faculty"))" href="/dashboard/faculty"><i class="bi bi-grid-1x2"></i>Dashboard</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActive("courses"))" href="/dashboard/faculty/courses"><i class="bi bi-book"></i>Courses</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActive("attendance"))" href="/dashboard/faculty/attendance"><i class="bi bi-clipboard-check"></i>Attendance</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActive("assignments"))" href="/dashboard/faculty/assignments"><i class="bi bi-journal-check"></i>Assignments</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActive("submissions"))" href="/dashboard/faculty/submissions"><i class="bi bi-inbox"></i>Submissions</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActive("announcements"))" href="/dashboard/faculty/announcements"><i class="bi bi-megaphone"></i>Posts</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActive("resources"))" href="/dashboard/faculty/resources"><i class="bi bi-folder2-open"></i>Resources</a></li>
+                            </ul>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 ms-auto">
+                            <span class="live-chip"><span></span>@Campus.Submissions.Count Submissions</span>
+                            <div class="campus-avatar">@(context.User.FindFirst("Initials")?.Value ?? "F")</div>
+                            <a href="/auth/signout" class="btn btn-sm btn-outline-light rounded-pill"><i class="bi bi-box-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </nav>
+                <main class="campus-main">@Body</main>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            @{ Navigation.NavigateTo("/account/login", forceLoad: true); }
+        </NotAuthorized>
+    </AuthorizeView>
+</CascadingAuthenticationState>
+
+@code {
+    private string IsActive(string segment) => Navigation.Uri.Contains(segment, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    private string IsActiveExact(string url) => Navigation.ToBaseRelativePath(Navigation.Uri).TrimEnd('/').Equals(url.Trim('/'), StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}

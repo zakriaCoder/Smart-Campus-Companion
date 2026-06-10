@@ -1,0 +1,33 @@
+SmartCampus Companion - Final Frontend Realtime Version
+
+Main demo login:
+Role: Student
+Email: 241844@students.au.edu.pk
+Password: bilal123
+
+Other demo accounts:
+Registrar: admin@au.edu.pk / admin123
+HOD: hod.cs@au.edu.pk / hod12345
+Faculty: bilal.raza@au.edu.pk / faculty123
+
+What was added/polished:
+1. Central CampusRealtimeService singleton for shared real-time state.
+2. Dashboard updates instantly when modules add/update/delete data.
+3. Notification Center added at /dashboard/notifications.
+4. Student modules redesigned with modern responsive UI:
+   - Profile
+   - Schedule
+   - Assignments
+   - Lost & Found
+   - Events
+   - Ride Sharing / map-style route preview
+   - Study Resources
+   - Marketplace
+   - Notifications
+5. Search and filters added where they make sense.
+6. CRUD-style actions added for frontend demo.
+7. Faculty placeholder pages replaced with Announcements and Submissions pages.
+8. Broken navigation links corrected for Student, Faculty, HOD and Admin.
+
+Important note for viva/demo:
+This is frontend/demo real-time using Blazor Server singleton service. It behaves like live state while the app is running. In the backend phase, this same service flow can be connected with SQL Server/EF Core or SignalR/Firebase for true multi-user persistence.

@@ -1,0 +1,120 @@
+@page "/dashboard/faculty/attendance"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.FacultyLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Faculty")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Mark Attendance — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero attendance-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Faculty-only attendance control</span>
+            <h1>Mark Attendance</h1>
+            <p>Select your assigned course, mark students, and the student attendance page updates instantly.</p>
+        </div>
+        <span class="hero-pill">@Campus.AttendanceMarkedToday Marked Today</span>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-4 sticky-card">
+            <div class="section-head"><div><h2>Session</h2><p>Only assigned courses are shown.</p></div></div>
+            <select class="form-select smart-input" @bind="courseId">
+                @foreach (var c in MyCourses)
+                {
+                    <option value="@c.Id">@c.Code - @c.Title</option>
+                }
+            </select>
+            <input class="form-control smart-input" type="date" @bind="attendanceDate" />
+            <input class="form-control smart-input" placeholder="Remarks for selected marking" @bind="remarks" @bind:event="oninput" />
+            <div class="workflow-note"><i class="bi bi-shield-check"></i><span>Attendance records are maintained by assigned faculty and published to students after marking.</span></div>
+        </div>
+
+        <div class="glass-card span-8">
+            <div class="section-head"><div><h2>@(SelectedCourse?.Code ?? "Course") enrolled students</h2><p>Mark Present, Late, Absent, or Leave.</p></div></div>
+            @if (SelectedCourse is null)
+            {
+                <div class="empty-state"><i class="bi bi-book"></i><h3>No course selected</h3><p>HOD must assign courses to faculty first.</p></div>
+            }
+            else
+            {
+                @foreach (var student in Campus.GetStudentsForCourse(SelectedCourse.Id))
+                {
+                    var today = Campus.GetAttendanceForCourse(SelectedCourse.Id).FirstOrDefault(x => x.StudentEmail == student.Email && x.Date.Date == attendanceDate.Date);
+                    <div class="student-attendance-row">
+                        <div class="mini-avatar">@student.Initials</div>
+                        <div class="flex-grow-1">
+                            <h3>@student.FullName</h3>
+                            <p>@student.StudentId · @student.Semester · Current: @(today?.Status ?? "Not Marked")</p>
+                        </div>
+                        <button class="mini-action success" @onclick="@(() => MarkPresent(student.Email))">Present</button>
+                        <button class="mini-action warning" @onclick="@(() => MarkLate(student.Email))">Late</button>
+                        <button class="mini-action danger" @onclick="@(() => MarkAbsent(student.Email))">Absent</button>
+                        <button class="mini-action" @onclick="@(() => MarkLeave(student.Email))">Leave</button>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="glass-card span-12">
+            <div class="section-head"><div><h2>Course attendance log</h2><p>Latest records for selected course.</p></div></div>
+            <div class="table-responsive">
+                <table class="table smart-table align-middle">
+                    <thead><tr><th>Date</th><th>Student</th><th>Status</th><th>Remarks</th><th>Marked At</th></tr></thead>
+                    <tbody>
+                    @foreach (var r in CourseRecords.Take(20))
+                    {
+                        <tr><td>@r.Date.ToString("MMM dd")</td><td>@r.StudentName<br /><small>@r.StudentId</small></td><td><span class="status-pill @StatusTone(r.Status)">@r.Status</span></td><td>@r.Remarks</td><td>@r.MarkedAt.ToString("hh:mm tt")</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string facultyEmail = "bilal.raza@au.edu.pk";
+    private string facultyName = "Faculty";
+    private string courseId = "";
+    private DateTime attendanceDate = DateTime.Today;
+    private string remarks = "Marked from faculty portal";
+
+    private IEnumerable<PortalCourse> MyCourses => Campus.GetCoursesForFaculty(facultyEmail);
+    private PortalCourse? SelectedCourse => Campus.Courses.FirstOrDefault(c => c.Id == courseId);
+    private IEnumerable<AttendanceRecord> CourseRecords => string.IsNullOrWhiteSpace(courseId) ? Enumerable.Empty<AttendanceRecord>() : Campus.GetAttendanceForCourse(courseId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        facultyEmail = state.User.Identity?.Name ?? facultyEmail;
+        facultyName = state.User.FindFirst("FullName")?.Value ?? Campus.FindFacultyByEmail(facultyEmail)?.FullName ?? "Faculty";
+        courseId = MyCourses.FirstOrDefault()?.Id ?? "";
+    }
+
+    private void MarkPresent(string studentEmail) => Mark(studentEmail, "Present");
+    private void MarkLate(string studentEmail) => Mark(studentEmail, "Late");
+    private void MarkAbsent(string studentEmail) => Mark(studentEmail, "Absent");
+    private void MarkLeave(string studentEmail) => Mark(studentEmail, "Leave");
+
+    private void Mark(string studentEmail, string status)
+    {
+        if (string.IsNullOrWhiteSpace(courseId)) return;
+        Campus.MarkAttendance(courseId, attendanceDate, studentEmail, status, remarks, facultyName);
+    }
+
+    private static string StatusTone(string status) => status switch
+    {
+        "Present" => "success",
+        "Late" => "warning",
+        "Leave" => "primary",
+        "Absent" => "danger",
+        _ => "primary"
+    };
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

@@ -1,0 +1,185 @@
+@page "/dashboard/assignments"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Student")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Assignments — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero assignment-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Official assignment workflow</span>
+            <h1>Assignment Tracker & Submission</h1>
+            <p>Faculty posts assignments from their panel. Students submit here, and submissions instantly appear in the faculty checking panel.</p>
+        </div>
+        <button class="btn primary-action" @onclick="AddPersonalTask"><i class="bi bi-plus-lg me-1"></i> Add Personal Task</button>
+    </div>
+
+    <div class="insight-grid">
+        <div class="insight-card"><i class="bi bi-list-task"></i><span>Official</span><strong>@OfficialAssignments.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-hourglass-split"></i><span>Pending</span><strong>@OfficialAssignments.Count(a => Campus.GetSubmission(a.Id, currentEmail) is null)</strong></div>
+        <div class="insight-card"><i class="bi bi-upload"></i><span>Submitted</span><strong>@OfficialAssignments.Count(a => Campus.GetSubmission(a.Id, currentEmail) is not null)</strong></div>
+        <div class="insight-card"><i class="bi bi-exclamation-triangle"></i><span>Overdue</span><strong>@OfficialAssignments.Count(a => a.IsOverdue && Campus.GetSubmission(a.Id, currentEmail) is null)</strong></div>
+    </div>
+
+    <div class="toolbar-grid three mt-3">
+        <input class="form-control smart-input" placeholder="Search assignment, course, teacher..." @bind="search" @bind:event="oninput" />
+        <select class="form-select smart-input" @bind="statusFilter">
+            <option value="All">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Submitted">Submitted</option>
+            <option value="Overdue">Overdue</option>
+        </select>
+        <select class="form-select smart-input" @bind="courseFilter">
+            <option value="All">All Courses</option>
+            @foreach (var c in Campus.GetStudentCourses(currentEmail))
+            {
+                <option value="@c.Code">@c.Code</option>
+            }
+        </select>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-8">
+            <div class="section-head">
+                <div>
+                    <h2>Official assignments</h2>
+                    <p>These are linked with enrolled courses and faculty panel.</p>
+                </div>
+            </div>
+
+            @foreach (var item in FilteredOfficialAssignments)
+            {
+                var submission = Campus.GetSubmission(item.Id, currentEmail);
+                <div class="assignment-card @(submission is not null ? "done" : item.IsOverdue ? "overdue" : "")">
+                    <div class="assignment-date">
+                        <strong>@item.DueDate.ToString("dd")</strong>
+                        <span>@item.DueDate.ToString("MMM")</span>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h3>@item.Title</h3>
+                            <span class="soft-badge">@item.CourseCode</span>
+                            <span class="status-pill @(submission is null ? (item.IsOverdue ? "danger" : "warning") : "success")">
+                                @(submission is null ? (item.IsOverdue ? "Overdue" : "Pending") : submission.Status)
+                            </span>
+                        </div>
+                        <p>@item.Description</p>
+                        <div class="meta-line">
+                            <span><i class="bi bi-person-video3"></i> @item.TeacherName</span>
+                            <span><i class="bi bi-award"></i> @item.Marks marks</span>
+                            @if (submission is not null)
+                            {
+                                <span><i class="bi bi-file-earmark-check"></i> @submission.FileName</span>
+                                <span><i class="bi bi-clock"></i> @submission.SubmittedOn.ToString("MMM dd, hh:mm tt")</span>
+                            }
+                        </div>
+
+                        @if (submission?.Marks is not null)
+                        {
+                            <div class="feedback-box">Marks: <strong>@submission.Marks/@item.Marks</strong> · @submission.Feedback</div>
+                        }
+                    </div>
+                    <div class="submit-panel">
+                        <input class="form-control smart-input compact" placeholder="File name e.g. report.pdf" @bind="submissionFile" />
+                        <input class="form-control smart-input compact" placeholder="Remarks" @bind="submissionRemarks" />
+                        <button class="btn primary-action w-100" @onclick="@(() => Submit(item.Id))">
+                            @(submission is null ? "Submit" : "Resubmit")
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="glass-card span-4">
+            <div class="section-head">
+                <div>
+                    <h2>Personal checklist</h2>
+                    <p>Student self-tracker for extra tasks.</p>
+                </div>
+            </div>
+
+            <div class="mini-form">
+                <input class="form-control smart-input" placeholder="Task title" @bind="taskTitle" @bind:event="oninput" />
+                <button class="btn soft-action w-100" @onclick="AddPersonalTask">Add Task</button>
+            </div>
+
+            @foreach (var item in Campus.Assignments)
+            {
+                <div class="personal-task">
+                    <button class="check-btn @(item.IsCompleted ? "checked" : "")" @onclick="@(() => Campus.ToggleAssignment(item.Id))"><i class="bi bi-check"></i></button>
+                    <div>
+                        <strong>@item.Title</strong>
+                        <span>@item.Course · @item.Progress%</span>
+                    </div>
+                    <button class="mini-action danger" @onclick="@(() => Campus.DeleteAssignment(item.Id))"><i class="bi bi-trash"></i></button>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private string currentEmail = "241844@students.au.edu.pk";
+    private string search = "";
+    private string statusFilter = "All";
+    private string courseFilter = "All";
+    private string submissionFile = "submission.pdf";
+    private string submissionRemarks = "Submitted from SmartCampus portal";
+    private string taskTitle = "";
+
+    private IEnumerable<PortalAssignment> OfficialAssignments => Campus.GetAssignmentsForStudent(currentEmail);
+
+    private IEnumerable<PortalAssignment> FilteredOfficialAssignments
+    {
+        get
+        {
+            var query = OfficialAssignments;
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(a => a.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || a.CourseCode.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || a.TeacherName.Contains(search, StringComparison.OrdinalIgnoreCase));
+            }
+            if (courseFilter != "All") query = query.Where(a => a.CourseCode == courseFilter);
+            if (statusFilter == "Submitted") query = query.Where(a => Campus.GetSubmission(a.Id, currentEmail) is not null);
+            if (statusFilter == "Pending") query = query.Where(a => Campus.GetSubmission(a.Id, currentEmail) is null && !a.IsOverdue);
+            if (statusFilter == "Overdue") query = query.Where(a => Campus.GetSubmission(a.Id, currentEmail) is null && a.IsOverdue);
+            return query.OrderBy(a => a.DueDate);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        currentEmail = state.User.Identity?.Name ?? currentEmail;
+    }
+
+    private void Submit(string assignmentId)
+    {
+        Campus.SubmitCourseAssignment(assignmentId, currentEmail, submissionFile, submissionRemarks);
+        submissionFile = "submission.pdf";
+        submissionRemarks = "Submitted from SmartCampus portal";
+    }
+
+    private void AddPersonalTask()
+    {
+        var title = string.IsNullOrWhiteSpace(taskTitle) ? "Prepare course project review" : taskTitle;
+        Campus.AddAssignment(title, "Personal", DateTime.Today.AddDays(1), "High", "Personal", "Self");
+        taskTitle = "";
+    }
+
+    private void Refresh()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Campus.OnChange -= Refresh;
+    }
+}

@@ -1,0 +1,117 @@
+@page "/dashboard/attendance"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.MainLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Student")]
+@implements IDisposable
+@inject CampusRealtimeService Campus
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Attendance — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero attendance-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Faculty marked · student visible</span>
+            <h1>My Attendance</h1>
+            <p>Attendance is marked by faculty only. Students can view percentage, course-wise record, and class history.</p>
+        </div>
+        <span class="hero-pill">Overall @Campus.OverallAttendancePercent(currentEmail)%</span>
+    </div>
+
+    <div class="insight-grid mt-3">
+        <div class="insight-card"><i class="bi bi-clipboard-check"></i><span>Total Records</span><strong>@MyRecords.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-check-circle"></i><span>Present/Late/Leave</span><strong>@MyRecords.Count(x => x.Status != "Absent")</strong></div>
+        <div class="insight-card"><i class="bi bi-x-circle"></i><span>Absent</span><strong>@MyRecords.Count(x => x.Status == "Absent")</strong></div>
+        <div class="insight-card"><i class="bi bi-graph-up-arrow"></i><span>Percentage</span><strong>@Campus.OverallAttendancePercent(currentEmail)%</strong></div>
+    </div>
+
+    <div class="neo-grid mt-3">
+        <div class="glass-card span-4 sticky-card">
+            <div class="section-head"><div><h2>Course percentage</h2><p>Official courses from enrollment.</p></div></div>
+            @foreach (var course in Campus.GetStudentCourses(currentEmail))
+            {
+                var percent = Campus.AttendancePercent(currentEmail, course.Id);
+                <div class="attendance-meter">
+                    <div class="d-flex justify-content-between"><strong>@course.Code</strong><span>@percent%</span></div>
+                    <p>@course.Title</p>
+                    <div class="progress modern-progress"><div class="progress-bar" style="width:@percent%"></div></div>
+                </div>
+            }
+        </div>
+
+        <div class="glass-card span-8">
+            <div class="toolbar-grid three">
+                <input class="form-control smart-input" placeholder="Search course, date, status..." @bind="search" @bind:event="oninput" />
+                <select class="form-select smart-input" @bind="courseFilter">
+                    <option value="All">All Courses</option>
+                    @foreach (var c in Campus.GetStudentCourses(currentEmail))
+                    {
+                        <option value="@c.Code">@c.Code</option>
+                    }
+                </select>
+                <select class="form-select smart-input" @bind="statusFilter">
+                    <option value="All">All Status</option>
+                    <option>Present</option>
+                    <option>Late</option>
+                    <option>Absent</option>
+                    <option>Leave</option>
+                </select>
+            </div>
+
+            <div class="table-responsive mt-3">
+                <table class="table smart-table align-middle">
+                    <thead><tr><th>Date</th><th>Course</th><th>Status</th><th>Marked By</th><th>Remarks</th></tr></thead>
+                    <tbody>
+                    @foreach (var r in FilteredRecords)
+                    {
+                        <tr>
+                            <td>@r.Date.ToString("MMM dd, yyyy")</td>
+                            <td><strong>@r.CourseCode</strong><br /><small>@r.CourseTitle</small></td>
+                            <td><span class="status-pill @StatusTone(r.Status)">@r.Status</span></td>
+                            <td>@r.MarkedBy</td>
+                            <td>@r.Remarks</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            @if (!FilteredRecords.Any())
+            {
+                <div class="empty-state"><i class="bi bi-clipboard-x"></i><h3>No attendance found</h3><p>Ask faculty to mark attendance from their panel.</p></div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private string currentEmail = "241844@students.au.edu.pk";
+    private string search = "";
+    private string courseFilter = "All";
+    private string statusFilter = "All";
+
+    private IEnumerable<AttendanceRecord> MyRecords => Campus.GetAttendanceForStudent(currentEmail);
+
+    private IEnumerable<AttendanceRecord> FilteredRecords => MyRecords
+        .Where(r => courseFilter == "All" || r.CourseCode == courseFilter)
+        .Where(r => statusFilter == "All" || r.Status == statusFilter)
+        .Where(r => string.IsNullOrWhiteSpace(search) || r.CourseCode.Contains(search, StringComparison.OrdinalIgnoreCase) || r.CourseTitle.Contains(search, StringComparison.OrdinalIgnoreCase) || r.Status.Contains(search, StringComparison.OrdinalIgnoreCase) || r.Date.ToString("MMM dd yyyy").Contains(search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Campus.OnChange += Refresh;
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        currentEmail = state.User.Identity?.Name ?? currentEmail;
+    }
+
+    private static string StatusTone(string status) => status switch
+    {
+        "Present" => "success",
+        "Late" => "warning",
+        "Leave" => "primary",
+        "Absent" => "danger",
+        _ => "primary"
+    };
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}

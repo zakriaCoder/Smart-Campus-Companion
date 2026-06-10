@@ -1,0 +1,157 @@
+@page "/dashboard/faculty/reports"
+@rendermode @(new InteractiveServerRenderMode())
+@layout SmartCampus.Components.Layout.FacultyLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Faculty")]
+@implements IDisposable
+@inject AuthenticationStateProvider AuthStateProvider
+@inject CampusRealtimeService Campus
+
+<PageTitle>Faculty Reports — SmartCampus</PageTitle>
+
+<section class="neo-page">
+    <div class="neo-hero faculty-hero">
+        <div>
+            <span class="eyebrow"><span class="pulse-dot"></span> Faculty Analytics</span>
+            <h1>Teaching Performance Desk</h1>
+            <p>Live view of assigned courses, enrolled students, attendance marking, classroom posts, assignments and submissions.</p>
+        </div>
+        <div class="hero-metrics">
+            <div><strong>@MyCourses.Count()</strong><span>Courses</span></div>
+            <div><strong>@MyStudents.Count()</strong><span>Students</span></div>
+        </div>
+    </div>
+
+    <div class="insight-grid mt-3">
+        <div class="insight-card"><i class="bi bi-book"></i><span>Assigned Courses</span><strong>@MyCourses.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-people"></i><span>Course Students</span><strong>@MyStudents.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-journal-check"></i><span>Assignments</span><strong>@MyAssignments.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-inbox"></i><span>Submissions</span><strong>@MySubmissions.Count()</strong></div>
+        <div class="insight-card"><i class="bi bi-clipboard-check"></i><span>Attendance</span><strong>@AttendanceCoverage%</strong></div>
+        <div class="insight-card"><i class="bi bi-easel2"></i><span>Classroom Posts</span><strong>@MyPosts.Count()</strong></div>
+    </div>
+
+    <div class="report-board-grid">
+        <div class="glass-card report-chart-card">
+            <div class="section-head">
+                <div>
+                    <h2>Teaching health indicators</h2>
+                    <p>Updated as faculty posts assignments, marks attendance and checks submissions.</p>
+                </div>
+            </div>
+
+            <div class="report-bar-row">
+                <span>Attendance marked</span>
+                <div class="report-bar-track"><div class="report-bar-fill" style="@BarWidth(AttendanceCoverage)"></div></div>
+                <strong>@AttendanceCoverage%</strong>
+            </div>
+            <div class="report-bar-row">
+                <span>Submission progress</span>
+                <div class="report-bar-track"><div class="report-bar-fill" style="@BarWidth(SubmissionProgress)"></div></div>
+                <strong>@SubmissionProgress%</strong>
+            </div>
+            <div class="report-bar-row">
+                <span>Checked work</span>
+                <div class="report-bar-track"><div class="report-bar-fill" style="@BarWidth(CheckedProgress)"></div></div>
+                <strong>@CheckedProgress%</strong>
+            </div>
+            <div class="report-bar-row">
+                <span>Classroom activity</span>
+                <div class="report-bar-track"><div class="report-bar-fill" style="@BarWidth(ClassroomActivity)"></div></div>
+                <strong>@ClassroomActivity%</strong>
+            </div>
+        </div>
+
+        <div class="glass-card report-actions-card office-scope-card">
+            <div class="section-head">
+                <div>
+                    <h2>Recommended faculty actions</h2>
+                    <p>Professional checklist for a complete classroom workflow.</p>
+                </div>
+            </div>
+            <div class="workflow-list">
+                <div><i class="bi bi-check-circle"></i><span>Mark attendance for every scheduled class</span></div>
+                <div><i class="bi bi-check-circle"></i><span>Post assignment details inside the course room</span></div>
+                <div><i class="bi bi-check-circle"></i><span>Check submissions with marks and feedback</span></div>
+                <div><i class="bi bi-check-circle"></i><span>Upload slides, notes and reference resources</span></div>
+            </div>
+        </div>
+
+        <div class="glass-card span-12">
+            <div class="section-head">
+                <div>
+                    <h2>Assigned course summary</h2>
+                    <p>One row per course assigned to the current faculty member.</p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table smart-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Course</th>
+                            <th>Schedule</th>
+                            <th>Students</th>
+                            <th>Attendance</th>
+                            <th>Assignments</th>
+                            <th>Submissions</th>
+                            <th>GCR Posts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var course in MyCourses)
+                        {
+                            <tr>
+                                <td><strong>@course.Code</strong><br /><small>@course.Title</small></td>
+                                <td>@course.Day · @course.StartTime<br /><small>@course.Room</small></td>
+                                <td>@Campus.EnrollmentCount(course.Id)</td>
+                                <td>@CourseAttendance(course.Id)%</td>
+                                <td>@Campus.CourseAssignments.Count(a => a.CourseId == course.Id)</td>
+                                <td>@Campus.Submissions.Count(s => s.CourseId == course.Id)</td>
+                                <td>@Campus.ClassroomPosts.Count(p => p.CourseId == course.Id)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string facultyEmail = "";
+
+    private IEnumerable<PortalCourse> MyCourses => Campus.GetCoursesForFaculty(facultyEmail).ToList();
+    private IEnumerable<PortalStudent> MyStudents => MyCourses.SelectMany(c => Campus.GetStudentsForCourse(c.Id)).DistinctBy(s => s.Email).ToList();
+    private IEnumerable<PortalAssignment> MyAssignments => Campus.CourseAssignments.Where(a => MyCourses.Any(c => c.Id == a.CourseId)).ToList();
+    private IEnumerable<PortalSubmission> MySubmissions => Campus.Submissions.Where(s => MyCourses.Any(c => c.Id == s.CourseId)).ToList();
+    private IEnumerable<ClassroomPost> MyPosts => Campus.GetClassroomPostsForFaculty(facultyEmail).ToList();
+
+    private int AttendanceCoverage => Percent(Campus.AttendanceRecords.Where(r => MyCourses.Any(c => c.Id == r.CourseId)).Select(r => r.StudentEmail + r.CourseId).Distinct().Count(), Math.Max(1, MyCourses.Sum(c => Campus.EnrollmentCount(c.Id))));
+    private int SubmissionProgress => Percent(MySubmissions.Count(), Math.Max(1, MyAssignments.Count() * Math.Max(1, MyStudents.Count())));
+    private int CheckedProgress => Percent(MySubmissions.Count(s => s.Status == "Checked"), Math.Max(1, MySubmissions.Count()));
+    private int ClassroomActivity => Percent(MyPosts.Count(), Math.Max(1, MyCourses.Count() * 3));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        facultyEmail = auth.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? auth.User.Identity?.Name ?? "";
+        Campus.OnChange += Refresh;
+    }
+
+    private int CourseAttendance(string courseId)
+    {
+        var expected = Math.Max(1, Campus.EnrollmentCount(courseId));
+        var marked = Campus.AttendanceRecords.Where(r => r.CourseId == courseId).Select(r => r.StudentEmail).Distinct().Count();
+        return Percent(marked, expected);
+    }
+
+    private static int Percent(int value, int total)
+    {
+        if (total <= 0) return 0;
+        return Math.Clamp((int)Math.Round(value * 100.0 / total), 0, 100);
+    }
+
+    private static string BarWidth(int value) => $"width:{Math.Clamp(value, 0, 100)}%";
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Campus.OnChange -= Refresh;
+}
