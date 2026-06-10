@@ -4,6 +4,7 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 @implements IDisposable
 @inject CampusRealtimeService Campus
+@inject UserStoreService UserStore
 @inject AuthenticationStateProvider AuthProvider
 
 <PageTitle>Registrar Academic Office — SmartCampus</PageTitle>
@@ -183,7 +184,28 @@
 
     private void AddStudent()
     {
+        if (string.IsNullOrWhiteSpace(newName) ||
+            string.IsNullOrWhiteSpace(newId) ||
+            string.IsNullOrWhiteSpace(newEmail))
+            return;
+
+        // Create official student record for campus modules.
         Campus.AddStudentRecord(newName, newId, newEmail, newDepartment, newSemester);
+
+        // Also create login account automatically.
+        // Default password for demo: StudentID + 123
+        UserStore.CreateUser(new AppUser
+        {
+            FullName = newName.Trim(),
+            StudentId = newId.Trim(),
+            Email = newEmail.Trim(),
+            Department = newDepartment.Trim(),
+            Designation = $"Student - {newSemester.Trim()}",
+            Password = $"{newId.Trim()}123",
+            Role = UserRole.Student
+        });
+
+        SelectStudent(newEmail);
         newName = ""; newId = ""; newEmail = ""; newSemester = "I-A";
     }
 

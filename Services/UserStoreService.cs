@@ -7,13 +7,19 @@ namespace SmartCampus.Services;
 public class UserStoreService
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
+
+    // IMPORTANT FOR FREE HOSTING / DEMO MODE:
+    // When SQL Server is not connected online, the app falls back to this shared list.
+    // It must be static, otherwise a student created from the Blazor page is lost
+    // before the /auth/signin request runs in a new scope.
+    private static readonly List<AppUser> SharedFallbackUsers = CreateDefaultUsers();
     private readonly List<AppUser> _fallbackUsers;
     private bool _databaseAvailable = true;
 
     public UserStoreService(IDbContextFactory<AppDbContext> dbFactory)
     {
         _dbFactory = dbFactory;
-        _fallbackUsers = CreateDefaultUsers();
+        _fallbackUsers = SharedFallbackUsers;
         SeedUsersIfEmpty();
     }
 

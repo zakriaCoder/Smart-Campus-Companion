@@ -3,6 +3,7 @@
 @layout SmartCampus.Components.Layout.AdminLayout
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 @inject UserStoreService UserStore
+@inject CampusRealtimeService Campus
 @inject NavigationManager Navigation
 
 <PageTitle>Register Academic Record — SmartCampus Registrar</PageTitle>
@@ -294,6 +295,29 @@
 
         if (ok)
         {
+            // Keep login users and live campus records in sync.
+            // Student must appear in Registrar Records, Course Registration and Faculty Attendance.
+            // Faculty/HOD must appear in HOD course assignment dropdown.
+            if (selectedRole == UserRole.Student)
+            {
+                var semester = form.Designation.Trim();
+                Campus.AddStudentRecord(
+                    form.FullName.Trim(),
+                    form.UserId.Trim(),
+                    form.Email.Trim(),
+                    form.Department.Trim(),
+                    semester);
+            }
+            else if (selectedRole == UserRole.Faculty || selectedRole == UserRole.HOD)
+            {
+                Campus.AddFacultyRecord(
+                    form.FullName.Trim(),
+                    form.UserId.Trim(),
+                    form.Email.Trim(),
+                    form.Department.Trim(),
+                    form.Designation.Trim());
+            }
+
             lastCreated = newUser;
             success     = true;
         }

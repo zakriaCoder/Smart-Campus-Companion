@@ -449,6 +449,24 @@ public sealed class CampusRealtimeService
         RaiseChanged();
     }
 
+    public void AddFacultyRecord(string fullName, string facultyId, string email, string department, string designation)
+    {
+        if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(facultyId) || string.IsNullOrWhiteSpace(email)) return;
+        if (FacultyMembers.Any(f => f.Email.Equals(email, StringComparison.OrdinalIgnoreCase) || f.FacultyId.Equals(facultyId, StringComparison.OrdinalIgnoreCase))) return;
+
+        FacultyMembers.Insert(0, new PortalFaculty
+        {
+            FacultyId = facultyId.Trim(),
+            FullName = fullName.Trim(),
+            Email = email.Trim(),
+            Department = Clean(department, "Computer Science"),
+            Designation = Clean(designation, "Lecturer")
+        });
+
+        AddActivity("Faculty record created", $"Registrar created faculty record for {fullName}", "Registrar", "bi-person-video3", "success");
+        RaiseChanged();
+    }
+
     public void UpdateStudentOfficialRecord(string email, string fullName, string department, string semester, double cgpa, string status)
     {
         var student = FindStudentByEmail(email);

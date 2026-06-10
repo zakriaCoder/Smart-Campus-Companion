@@ -74,7 +74,18 @@
 
     private void CreateCourse()
     {
+        var codeToCreate = newCode.Trim().ToUpperInvariant();
         Campus.CreateCourse(newCode, newTitle, newDepartment, newSemester, 3, newCapacity);
+
+        // After creating a course, auto-select it so HOD does not accidentally
+        // assign the faculty to an older course from the dropdown.
+        var created = Campus.Courses.FirstOrDefault(c => c.Code.Equals(codeToCreate, StringComparison.OrdinalIgnoreCase));
+        if (created is not null)
+            selectedCourseId = created.Id;
+
+        if (string.IsNullOrWhiteSpace(facultyEmail))
+            facultyEmail = Campus.FacultyMembers.FirstOrDefault()?.Email ?? "";
+
         newCode = "";
         newTitle = "";
     }

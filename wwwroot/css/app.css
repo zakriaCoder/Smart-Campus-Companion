@@ -2093,3 +2093,39 @@ body { background: radial-gradient(circle at top left, rgba(81,211,154,.13), tra
     .assistant-message { max-width: 100%; }
     .assistant-compose { grid-template-columns: 1fr; }
 }
+
+.campus-navbar .container-fluid,
+.sc-navbar .container-fluid {
+    gap: 10px;
+}
+
+.campus-navbar .d-flex.align-items-center.gap-2.ms-auto,
+.sc-navbar .d-flex.align-items-center.gap-2.ms-auto {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.campus-nav,
+.sc-nav-links {
+    max-width: min(100%, 920px);
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.campus-nav::-webkit-scrollbar,
+.sc-nav-links::-webkit-scrollbar {
+    height: 4px;
+}
+
+@media (max-width: 1200px) {
+    .campus-navbar .navbar-collapse,
+    .sc-navbar .navbar-collapse {
+        order: 4;
+        width: 100%;
+    }
+
+    .campus-navbar .d-flex.align-items-center.gap-2.ms-auto,
+    .sc-navbar .d-flex.align-items-center.gap-2.ms-auto {
+        margin-left: auto !important;
+    }
+}

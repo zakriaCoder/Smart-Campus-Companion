@@ -1,13 +1,9 @@
-SmartCampus AI, free map, and free deployment setup
-===================================================
+SmartCampus AI and free map setup
+=================================
 
 AI assistant:
-- Recommended free API: Gemini API free tier from Google AI Studio.
-- Set Gemini:ApiKey in local appsettings.json for local testing, or Gemini__ApiKey in hosting environment variables.
-- Default Gemini model: gemini-3.5-flash.
-- OpenAI is still optional through OpenAI:ApiKey, but Gemini is checked first.
-- If no AI key is configured, the assistant still works in demo mode with built-in campus answers.
-- Do not commit real API keys into the project files.
+- Set OpenAI:ApiKey in your hosting environment only if you want live AI.
+- If no key is configured, the assistant still works in demo mode with built-in campus answers.
 
 Free ride map:
 - The Ride Sharing page now uses OpenStreetMap tiles through Leaflet.
@@ -27,11 +23,3 @@ New/updated pages:
 
 - /dashboard/ridesharing
   Free OpenStreetMap route preview, pickup/drop markers, and OSRM route estimates.
-
-Free Render deployment:
-- Push this SmartCampus folder to GitHub.
-- Create a Render account and choose New > Blueprint, then select the repo.
-- Render reads render.yaml and deploys the Docker web service on the free plan.
-- Add Gemini__ApiKey as a secret environment variable in Render.
-- Free Render services spin down when idle, so first load after inactivity can be slow.
-- The app works without SQL Server by using seeded demo data.
