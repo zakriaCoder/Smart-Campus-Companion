@@ -125,6 +125,27 @@
                 </div>
             </div>
             <div class="glass-card span-4">
+                <div class="section-head"><div><h2>Assign course</h2><p>Officially add a student to any course.</p></div></div>
+                <select class="form-select smart-input" @bind="assignStudentEmail">
+                    @foreach (var student in Campus.Students.OrderBy(s => s.StudentId))
+                    {
+                        <option value="@student.Email">@student.StudentId - @student.FullName</option>
+                    }
+                </select>
+                <select class="form-select smart-input" @bind="assignCourseId">
+                    @foreach (var course in Campus.Courses.OrderBy(c => c.Code))
+                    {
+                        <option value="@course.Id">@course.Code - @course.Title</option>
+                    }
+                </select>
+                <button class="btn primary-action w-100" @onclick="AssignSelectedCourse">
+                    <i class="bi bi-journal-plus me-1"></i>Assign Course
+                </button>
+                <button class="btn soft-action w-100 mt-2" @onclick="DropSelectedCourse">
+                    <i class="bi bi-journal-minus me-1"></i>Drop Selected Course
+                </button>
+
+                <div class="divider"></div>
                 <div class="section-head"><div><h2>Official notice</h2><p>Registrar announcement to all students.</p></div></div>
                 <input class="form-control smart-input" placeholder="Title" @bind="noticeTitle" @bind:event="oninput" />
                 <textarea class="form-control smart-input" rows="5" placeholder="Message" @bind="noticeMessage"></textarea>
@@ -153,6 +174,8 @@
     private string editStatus = "Active";
     private string enrollSearch = "";
     private string enrollStatus = "All";
+    private string assignStudentEmail = "";
+    private string assignCourseId = "";
     private string noticeTitle = "";
     private string noticeMessage = "";
 
@@ -175,6 +198,8 @@
         var state = await AuthProvider.GetAuthenticationStateAsync();
         registrarName = state.User.FindFirst("FullName")?.Value ?? "Registrar Officer";
         SelectStudent(Campus.Students.FirstOrDefault()?.Email ?? "");
+        assignStudentEmail = Campus.Students.FirstOrDefault()?.Email ?? "";
+        assignCourseId = Campus.Courses.FirstOrDefault()?.Id ?? "";
     }
 
     private void ShowStudents() => tab = "Students";
@@ -230,6 +255,22 @@
     private void MarkDocumentReady(string id) => Campus.ProcessDocumentRequest(id, "Ready", "Ready for collection from Registrar Office");
 
     private void MarkDocumentNeedInfo(string id) => Campus.ProcessDocumentRequest(id, "Need Info", "Please submit missing verification details");
+
+    private void AssignSelectedCourse()
+    {
+        if (string.IsNullOrWhiteSpace(assignStudentEmail) || string.IsNullOrWhiteSpace(assignCourseId))
+            return;
+
+        Campus.AssignStudentToCourse(assignStudentEmail, assignCourseId, registrarName);
+    }
+
+    private void DropSelectedCourse()
+    {
+        if (string.IsNullOrWhiteSpace(assignStudentEmail) || string.IsNullOrWhiteSpace(assignCourseId))
+            return;
+
+        Campus.DropCourse(assignStudentEmail, assignCourseId);
+    }
 
     private void PostRegistrarNotice()
     {

@@ -2097,19 +2097,25 @@ body { background: radial-gradient(circle at top left, rgba(81,211,154,.13), tra
 .campus-navbar .container-fluid,
 .sc-navbar .container-fluid {
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 .campus-navbar .d-flex.align-items-center.gap-2.ms-auto,
 .sc-navbar .d-flex.align-items-center.gap-2.ms-auto {
     flex-shrink: 0;
     white-space: nowrap;
+    order: 3;
+    position: relative;
+    z-index: 2;
 }
 
 .campus-nav,
 .sc-nav-links {
-    max-width: min(100%, 920px);
+    max-width: 100%;
     overflow-x: auto;
     scrollbar-width: thin;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
 }
 
 .campus-nav::-webkit-scrollbar,
@@ -2122,10 +2128,25 @@ body { background: radial-gradient(circle at top left, rgba(81,211,154,.13), tra
     .sc-navbar .navbar-collapse {
         order: 4;
         width: 100%;
+        flex-basis: 100%;
+        overflow-x: auto;
     }
 
     .campus-navbar .d-flex.align-items-center.gap-2.ms-auto,
     .sc-navbar .d-flex.align-items-center.gap-2.ms-auto {
         margin-left: auto !important;
+    }
+}
+
+@media (min-width: 1201px) {
+    .campus-navbar .navbar-collapse,
+    .sc-navbar .navbar-collapse {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .campus-nav,
+    .sc-nav-links {
+        max-width: calc(100vw - 430px);
     }
 }

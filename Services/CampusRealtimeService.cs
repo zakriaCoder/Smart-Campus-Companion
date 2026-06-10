@@ -148,6 +148,32 @@ public sealed class CampusRealtimeService
         RaiseChanged();
     }
 
+    public void AssignStudentToCourse(string studentEmail, string courseId, string assignedBy)
+    {
+        var student = FindStudentByEmail(studentEmail);
+        var course = Courses.FirstOrDefault(c => c.Id == courseId);
+        if (student is null || course is null) return;
+        if (student.RecordStatus != "Active") return;
+        if (IsStudentEnrolled(studentEmail, courseId)) return;
+        if (EnrollmentCount(courseId) >= course.Capacity) return;
+
+        Enrollments.Insert(0, new CourseEnrollment
+        {
+            Id = NewId(),
+            CourseId = course.Id,
+            StudentEmail = student.Email,
+            StudentId = student.StudentId,
+            StudentName = student.FullName,
+            EnrolledOn = DateTime.Now,
+            Status = "Enrolled"
+        });
+
+        PublishClassroomPost(course.Id, "Registrar assigned student", $"{student.FullName} was officially assigned to {course.Code}.", assignedBy, "Registrar");
+        AddActivity("Course assigned", $"{assignedBy} assigned {student.FullName} to {course.Code}", "Registrar", "bi-journal-plus", "success");
+        AddNotification("Course Assigned", $"{assignedBy} assigned you to {course.Code} - {course.Title}.", "Registration", "success");
+        RaiseChanged();
+    }
+
     public void DropCourse(string studentEmail, string courseId)
     {
         var enrollment = Enrollments.FirstOrDefault(e => e.CourseId == courseId && e.StudentEmail.Equals(studentEmail, StringComparison.OrdinalIgnoreCase) && e.Status == "Enrolled");
